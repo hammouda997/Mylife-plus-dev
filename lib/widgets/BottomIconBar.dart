@@ -47,6 +47,7 @@ class BottomIconBarState extends State<BottomIconBar> {
           child: Image.asset(
             asset,
             width: 50,
+            height: 50,
 // Icon size
           ),
         ),

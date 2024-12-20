@@ -10,7 +10,7 @@ class MemoryAddScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Colors.amber,
-        elevation: 0, // No shadow
+        elevation: 0, 
         automaticallyImplyLeading: false,
         toolbarHeight: 17,
       ),
@@ -23,9 +23,9 @@ class MemoryAddScreen extends StatelessWidget {
           ),
           Expanded(
             child: Padding(
-              padding: const EdgeInsets.only(top: 20.0), // Apply padding only to the
+              padding: const EdgeInsets.only(top: 10.0), 
 
-              child: MemoryForm(), // MemoryForm will now expand and take remaining space
+              child: MemoryForm(), 
             ),
           ),
         ],
