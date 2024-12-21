@@ -9,8 +9,46 @@ import 'package:mapbox_maps_example/responsive_constants.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 
+import '../repository/dbUtils.dart';
 
 
+const double baseWidth = 375.0;
+
+class ResponsiveSize {
+  final BuildContext context;
+  ResponsiveSize(this.context);
+
+  double get scaleFactor => MediaQuery.of(context).size.width / baseWidth;
+
+  // Font Sizes
+  double get titleFontSize => 18.0 * scaleFactor;
+  double get subtitleFontSize => 18.0 * scaleFactor;
+  double get bodyFontSize => 18.0 * scaleFactor;
+
+  // Icon Sizes
+  double get iconSizeLarge => 32.0 * scaleFactor;
+  double get iconSizeMedium => 22.0 * scaleFactor;
+  double get iconSizeSmall => 16.0 * scaleFactor;
+
+  // Common Sizes (use these for paddings, margins, etc.)
+  double get paddingSmall => 8.0 * scaleFactor;
+  double get paddingMedium => 16.0 * scaleFactor;
+  double get paddingLarge => 24.0 * scaleFactor;
+
+  double get borderRadius => 8.0 * scaleFactor;
+
+  // Box Shadow Scaling
+  double get blurRadius => 5.0 * scaleFactor;
+  double get spreadRadius => 2.0 * scaleFactor;
+
+  // Other Sizes
+  double scale(double value) => value * scaleFactor;
+}
+const Color kPrimaryIconColor = Color(0xFFCACACA);
+const Color kTitleColor = Colors.black;
+const Color kSubtitleColor = Colors.black87;
+const Color kHintTextColor = Color(0xFFCACACA);
+const Color kBorderColor = Color(0xFFF1F1F1);
 
 class MemoryForm extends StatefulWidget {
   const MemoryForm({Key? key}) : super(key: key);
@@ -20,6 +58,24 @@ class MemoryForm extends StatefulWidget {
 }
 
 class MemoryFormState extends State<MemoryForm> {
+@override
+void initState() {
+  super.initState();
+  
+  // Request permissions asynchronously
+  checkAndRequestPermissions();
+
+  // Initialize the player
+  _player.openPlayer().catchError((e) {
+    debugPrint("Error opening player: $e");
+  });
+
+  // Initialize the recorder
+  _initializeRecorder();
+}
+  late AppDatabase appDatabase;
+
+
   DateTime _selectedDate = DateTime.now();
   final List<File> _selectedImages = [];
   final List<String> mockContacts = [
@@ -157,6 +213,7 @@ class MemoryFormState extends State<MemoryForm> {
     }
   }
 
+
   final FlutterSoundPlayer _player = FlutterSoundPlayer();
 
   final GlobalKey<AnimatedListState> _animatedListKey = GlobalKey<AnimatedListState>();
@@ -164,14 +221,7 @@ class MemoryFormState extends State<MemoryForm> {
 
   final FlutterSoundRecorder _recorder = FlutterSoundRecorder();
   String? _currentRecordingPath;
-  @override
-  void initState() {
-    super.initState();
-    checkAndRequestPermissions();
-    _player.openPlayer();
 
-    _initializeRecorder();
-  }
   Future<void> _initializeRecorder() async {
     try {
       final status = await Permission.microphone.status;
@@ -406,6 +456,7 @@ class MemoryFormState extends State<MemoryForm> {
                 color: kPrimaryIconColor,
               ),
               SizedBox(width: 6 * sizes.scaleFactor),
+
               Text(
                 'Text & Audio',
                 style: TextStyle(
