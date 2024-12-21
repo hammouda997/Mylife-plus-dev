@@ -57,13 +57,23 @@ class MemoryForm extends StatefulWidget {
 }
 
 class MemoryFormState extends State<MemoryForm> {
+@override
+void initState() {
+  super.initState();
+  
+  // Request permissions asynchronously
+  checkAndRequestPermissions();
 
+  // Initialize the player
+  _player.openPlayer().catchError((e) {
+    debugPrint("Error opening player: $e");
+  });
+
+  // Initialize the recorder
+  _initializeRecorder();
+}
   late AppDatabase appDatabase;
 
-  @override
-  void initState() {
-    super.initState();
-  }                   
 
   DateTime _selectedDate = DateTime.now();
   final List<File> _selectedImages = [];
@@ -211,14 +221,6 @@ class MemoryFormState extends State<MemoryForm> {
   final FlutterSoundRecorder _recorder = FlutterSoundRecorder();
   String? _currentRecordingPath;
 
-  @override
-  void initState() {
-    super.initState();
-    checkAndRequestPermissions();
-    _player.openPlayer();
-
-    _initializeRecorder();
-  }
   Future<void> _initializeRecorder() async {
     try {
       final status = await Permission.microphone.status;
