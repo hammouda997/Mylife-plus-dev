@@ -1,37 +1,28 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:mapbox_maps_example/widgets/Memory_content.dart';
+import '../theme.dart'; // Ensure the theme provider is imported
 
-
-class MemoryFeedScreen extends StatefulWidget {
+class MemoryFeedScreen extends ConsumerStatefulWidget {
   const MemoryFeedScreen({Key? key}) : super(key: key);
 
   @override
   MemoryFeedScreenState createState() => MemoryFeedScreenState();
 }
 
-class MemoryFeedScreenState extends State<MemoryFeedScreen> {
-
+class MemoryFeedScreenState extends ConsumerState<MemoryFeedScreen> {
   @override
   Widget build(BuildContext context) {
+    final themeData = ref.watch(themeProvider);
+    final sizes = ResponsiveSize(context);
+
     return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius:
-        BorderRadius.vertical(top: Radius.circular(16)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black26,
-            blurRadius: 5,
-            offset: Offset(0, -2),
-          ),
-        ],
-      ),
       child: ListView(
         physics: const BouncingScrollPhysics(),
-
         children: [
           Container(
-            color: Colors.white,
-            margin: EdgeInsets.only(top: 20),
+            color: themeData.cardColor,
+            margin: EdgeInsets.only(top: sizes.paddingMedium),
             child: Column(
               children: [
                 MemoryContent(
@@ -41,7 +32,7 @@ class MemoryFeedScreenState extends State<MemoryFeedScreen> {
                   content:
                   "Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit ametLorem ipsum dolor sit amet Lorem ipsum dolor sit amet",
                 ),
-                const Divider(color: Colors.grey),
+                _buildDivider(sizes, themeData),
                 MemoryContent(
                   date: "24/12/2024, 15:30",
                   country: "Country Name",
@@ -52,7 +43,7 @@ class MemoryFeedScreenState extends State<MemoryFeedScreen> {
                     "https://cdn.builder.io/api/v1/image/assets/TEMP/7632e90dad2f4f0ca39a4830dbb1b01d72906e4c0ddc67d230681b967b7cc622?placeholderIfAbsent=true&apiKey=c43da3a161eb4f318c4f96480fdf0876",
                   ],
                 ),
-                const Divider(color: Colors.grey),
+                _buildDivider(sizes, themeData),
                 MemoryContent(
                   date: "24/12/2024, 15:30",
                   country: "Country Name",
@@ -64,20 +55,27 @@ class MemoryFeedScreenState extends State<MemoryFeedScreen> {
                     "https://cdn.builder.io/api/v1/image/assets/TEMP/7632e90dad2f4f0ca39a4830dbb1b01d72906e4c0ddc67d230681b967b7cc622?placeholderIfAbsent=true&apiKey=c43da3a161eb4f318c4f96480fdf0876",
                   ],
                 ),
-                const Divider(color: Colors.grey),
+                _buildDivider(sizes, themeData),
                 MemoryContent(
                   date: "24/12/2024, 15:30",
                   country: "Country Name",
                   reactions: 3,
                   content:
-                  "i am the test dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit ametLorem ipsum dolor sit amet Lorem ipsum dolor sit amet",
+                  "I am the test dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit ametLorem ipsum dolor sit amet Lorem ipsum dolor sit amet",
                 ),
               ],
             ),
           ),
         ],
       ),
+    );
+  }
 
+  Widget _buildDivider(ResponsiveSize sizes, ThemeData theme) {
+    return Container(
+      margin: EdgeInsets.symmetric(vertical: sizes.paddingSmall),
+      height: sizes.scale(1.5),
+      color: theme.dividerColor,
     );
   }
 }

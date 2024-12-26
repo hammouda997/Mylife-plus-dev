@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:smooth_page_indicator/smooth_page_indicator.dart'; // For pagination dots
-import 'Memory_header.dart';
-import 'Memory_reactions.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:mapbox_maps_example/widgets/Memory_header.dart';
+import 'package:mapbox_maps_example/widgets/Memory_reactions.dart';
+import 'package:smooth_page_indicator/smooth_page_indicator.dart';
+import '../theme.dart';
 
-class MemoryContent extends StatelessWidget {
+class MemoryContent extends ConsumerWidget {
   final String date;
   final String country;
   final int reactions;
@@ -11,108 +13,97 @@ class MemoryContent extends StatelessWidget {
   final List<String>? imageUrls;
 
   const MemoryContent({
-    super.key,
+    Key? key,
     required this.date,
     required this.country,
     required this.reactions,
     this.content,
     this.imageUrls,
-  });
+  }) : super(key: key);
 
   @override
-  Widget build(BuildContext context) {
-    // PageController to control the PageView
-    final PageController pageController = PageController();
+  Widget build(BuildContext context, WidgetRef ref) {
+    final themeData = ref.watch(themeProvider);
+    final themeNotifier = ref.read(themeProvider.notifier);
+    final responsiveSize = ResponsiveSize(context);
+    final pageController = PageController();
 
     return Container(
-      color: Colors.white,
+      color: themeData.cardColor,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const SizedBox(height: 10),
           Padding(
-            padding: const EdgeInsets.all(16.0),
+            padding: EdgeInsets.all(responsiveSize.paddingMedium),
             child: MemoryHeader(
               date: date,
               country: country,
               reactions: reactions,
             ),
           ),
-          const SizedBox(height: 10),
+          SizedBox(height: responsiveSize.paddingSmall),
 
+          // Image Carousel with Pagination Dots
           if (imageUrls != null && imageUrls!.isNotEmpty)
             Column(
               children: [
                 SizedBox(
-                  width: MediaQuery.of(context).size.width,
-                  height: MediaQuery.of(context).size.height *
-                      0.5, // Half the screen height
+                  width: double.infinity,
+                  height: responsiveSize.scale(250),
                   child: PageView.builder(
                     controller: pageController,
                     itemCount: imageUrls!.length,
                     itemBuilder: (context, index) {
                       return GestureDetector(
-                        onTap: () {
-                          // Navigate to fullscreen view
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => FullScreenImageView(
-                                  imageUrl: imageUrls![index]),
-                            ),
-                          );
-                        },
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) =>
+                                FullScreenImageView(imageUrl: imageUrls![index]),
+                          ),
+                        ),
                         child: Image.network(
                           imageUrls![index],
-                          fit: BoxFit
-                              .cover, // Makes the image fill the width and height
-                          width: double.infinity,
-                          height: double.infinity,
+                          fit: BoxFit.cover,
                           errorBuilder: (context, error, stackTrace) =>
-                              Center(child: Icon(Icons.error)),
+                              Center(child: Icon(Icons.error, size: responsiveSize.iconSizeMedium)),
                         ),
                       );
                     },
                   ),
                 ),
-
-                // Pagination Dots (SmoothPageIndicator)
                 Padding(
-                  padding: const EdgeInsets.only(top: 8),
+                  padding: EdgeInsets.only(top: responsiveSize.paddingSmall),
                   child: SmoothPageIndicator(
                     controller: pageController,
                     count: imageUrls!.length,
                     effect: WormEffect(
-                      dotHeight: 8,
-                      dotWidth: 8,
-                      spacing: 4,
-                      dotColor: Colors.grey,
-                      activeDotColor: Colors.blue,
+                      dotHeight: responsiveSize.scale(8),
+                      dotWidth: responsiveSize.scale(8),
+                      spacing: responsiveSize.paddingSmall / 2,
+                      dotColor: themeData.disabledColor,
+                      activeDotColor: themeData.colorScheme.primary,
                     ),
                   ),
                 ),
               ],
             ),
 
-          // Content Section
           if (content != null && content!.isNotEmpty)
             Padding(
-              padding: const EdgeInsets.all(16.0),
+              padding: EdgeInsets.all(responsiveSize.paddingMedium),
               child: Text(
                 content!,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      fontSize: 20,
-                      fontFamily: 'Kumbh Sans',
-                      color: Colors.black,
-                    ),
-                textScaleFactor: 1.0,
+                style: themeData.textTheme.bodyMedium?.copyWith(
+                  fontSize: responsiveSize.bodyFontSize,
+                  fontFamily: 'Kumbh Sans',
+                  color: themeData.colorScheme.onSurface,
+                ),
               ),
             ),
 
-          // Spacer
-          const SizedBox(height: 14),
+          SizedBox(height: responsiveSize.paddingMedium),
 
-          // Memory Reactions Section
           const MemoryReactions(),
         ],
       ),
@@ -134,12 +125,11 @@ class FullScreenImageView extends StatelessWidget {
         onTap: () => Navigator.pop(context),
         child: Center(
           child: InteractiveViewer(
-            // Allows zooming and panning
             child: Image.network(
               imageUrl,
-              fit: BoxFit.contain, // Show the real size of the image
+              fit: BoxFit.contain,
               errorBuilder: (context, error, stackTrace) =>
-                  Center(child: Icon(Icons.error)),
+                  Center(child: Icon(Icons.error, color: Colors.white)),
             ),
           ),
         ),

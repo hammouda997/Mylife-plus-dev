@@ -1,36 +1,92 @@
 import 'package:flutter/material.dart';
-import '../widgets/memoryHeaderSection.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:easy_localization/easy_localization.dart';
+import 'package:mapbox_maps_example/theme.dart';
 import '../widgets/newMemoryForm.dart';
 
-class MemoryAddScreen extends StatelessWidget {
+class MemoryAddScreen extends ConsumerWidget {
   const MemoryAddScreen({Key? key}) : super(key: key);
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final themeData = ref.watch(themeProvider);
+    final responsiveSize = ResponsiveSize(context);
+    final headerColor = ref.watch(themeProvider.notifier).headerColor;
+    final rs = ref.watch(responsiveSizeProvider(context));
+
     return Scaffold(
+      backgroundColor: headerColor,
       appBar: AppBar(
-        backgroundColor: Colors.amber,
-        elevation: 0, 
-        automaticallyImplyLeading: false,
-        toolbarHeight: 17,
+        backgroundColor: themeData.primaryColor,
+        centerTitle: true,
+        elevation: 0,
+        toolbarHeight: responsiveSize.scale(50.0),
+        leading: IconButton(
+          icon: Icon(
+            Icons.close,
+            size: responsiveSize.iconSizeLarge,
+            color: Colors.red,
+          ),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Image.asset(
+              'assets/book.png',
+              width: rs.iconSizeLarge,
+              height: rs.iconSizeLarge,
+              fit: BoxFit.fill,
+            ),
+            SizedBox(width: responsiveSize.paddingSmall),
+            Text(
+              'new_memory'.tr(),
+              style: TextStyle(
+                fontSize: responsiveSize.titleFontSize,
+                fontWeight: FontWeight.bold,
+                color: themeData.colorScheme.onPrimary,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          IconButton(
+            icon: Icon(
+              Icons.check,
+              size: responsiveSize.iconSizeLarge,
+              color: Colors.green,
+            ),
+            onPressed: () {
+
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Memory saved!'.tr())),
+              );
+            },
+          ),
+        ],
       ),
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Container(
-            color: Colors.amber,
-            child: const HeaderSection(),
-          ),
           Expanded(
-            child: Padding(
-              padding: const EdgeInsets.only(top: 10.0), 
-
-              child: MemoryForm(), 
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(8.0),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 8.0,
+                    spreadRadius: 2.0,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: const MemoryForm(),
             ),
           ),
         ],
       ),
-      backgroundColor: Colors.amber,
     );
   }
 }

@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:mapbox_maps_example/responsive_constants.dart';
+import 'package:easy_localization/easy_localization.dart';
+import 'package:mapbox_maps_example/screens/Data_Setting_Screen.dart';
+import 'package:mapbox_maps_example/screens/Ui_settings.dart';
+import 'package:mapbox_maps_example/theme.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -12,47 +15,83 @@ class SettingsScreen extends ConsumerStatefulWidget {
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
-    final sizes = ResponsiveSize(context); // Initialize ResponsiveSize here
+    final sizes = ref.watch(responsiveSizeProvider(context));
+    final themeData = ref.watch(themeProvider);
+    final themeNotifier = ref.read(themeProvider.notifier);
+    final fontSizes = themeNotifier.fontSizes;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFFFF2C5),
-      appBar: null, // Hide the AppBar
+      backgroundColor: themeNotifier.headerColor,
+      appBar: AppBar(
+        backgroundColor: themeData.primaryColor,
+        elevation: 0,
+        toolbarHeight: sizes.scale(10.0),
+        automaticallyImplyLeading: false,
+      ),
       body: SafeArea(
         child: Column(
-          mainAxisSize: MainAxisSize.min,
+          mainAxisSize: MainAxisSize.max,
           children: [
-            SettingsHeader(sizes: sizes), // Pass sizes to the header
-            Column(
-              children: [
-                SettingsItem(
-                  sizes: sizes, // Pass sizes to SettingsItem
-                  icon: '🔐',
-                  title: 'Security',
-                  onTap: () {},
-                ),
-                const Divider(
-                  color: Color(0xFFE8E8E8),
-                  thickness: 1,
-                  height: 0,
-                ),
-                SettingsItem(
-                  sizes: sizes,
-                  icon: '📱',
-                  title: 'UI',
-                  onTap: () {},
-                ),
-                const Divider(
-                  color: Color(0xFFE8E8E8),
-                  thickness: 1,
-                  height: 0,
-                ),
-                SettingsItem(
-                  sizes: sizes,
-                  icon: '📁',
-                  title: 'Data',
-                  onTap: () {},
-                ),
-              ],
+            Container(
+              padding: EdgeInsets.symmetric(
+                vertical: sizes.scale(5.0),
+              ),
+              color: themeNotifier.primaryColor,
+              child: SettingsHeader(
+                sizes: sizes,
+                fontSizes: fontSizes,
+                themeData: themeData,
+              ),
+            ),
+            Expanded(
+              child: ListView(
+                children: [
+                  SettingsItem(
+                    sizes: sizes,
+                    fontSizes: fontSizes,
+                    icon: '🔐',
+                    title: tr('security'),
+                    onTap: () {},
+                    themeData: themeData,
+                    itemBackgroundColor: themeData.cardColor,
+                    headerColor: themeNotifier.headerColor,
+                  ),
+                  SettingsItem(
+                    sizes: sizes,
+                    fontSizes: fontSizes,
+                    icon: '📱',
+                    title: tr('ui'),
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const UiSettingsScreen(),
+                        ),
+                      );
+                    },
+                    themeData: themeData,
+                    itemBackgroundColor: themeData.cardColor,
+                    headerColor: themeNotifier.headerColor,
+                  ),
+                  SettingsItem(
+                    sizes: sizes,
+                    fontSizes: fontSizes,
+                    icon: '📁',
+                    title: tr('data'),
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const DataSettingScreen(),
+                        ),
+                      );
+                    },
+                    themeData: themeData,
+                    itemBackgroundColor: themeData.cardColor,
+                    headerColor: themeNotifier.headerColor,
+                  ),
+                ],
+              ),
             ),
           ],
         ),
@@ -63,36 +102,44 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
 class SettingsHeader extends StatelessWidget {
   final ResponsiveSize sizes;
+  final FontSizes fontSizes;
+  final ThemeData themeData;
 
-  const SettingsHeader({Key? key, required this.sizes}) : super(key: key);
+  const SettingsHeader({
+    Key? key,
+    required this.sizes,
+    required this.fontSizes,
+    required this.themeData,
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: const Color(0xFFFFD665),
-      padding: EdgeInsets.all(sizes.paddingMedium), // Use responsive padding
-      child: Column(
+      padding: EdgeInsets.symmetric(
+        horizontal: sizes.paddingSmall,
+        vertical: sizes.paddingSmall,
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                '⚙️',
-                style: TextStyle(
-                  fontSize: sizes.iconSizeLarge, // Use responsive font size
-                  fontFamily: 'Inter',
-                ),
-              ),
-              SizedBox(width: sizes.paddingSmall), // Add responsive spacing
-              Text(
-                'Settings',
-                style: TextStyle(
-                  fontSize: sizes.titleFontSize,
-                  fontWeight: FontWeight.w600,
-                  fontFamily: 'Kumbh Sans',
-                ),
-              ),
-            ],
+          Text(
+            '⚙️',
+            style: TextStyle(
+              fontSize: sizes.iconSizeLarge,
+              fontFamily: 'Inter',
+              color: themeData.iconTheme.color,
+            ),
+          ),
+          SizedBox(width: sizes.paddingSmall),
+          Text(
+            tr('settings'),
+            style: TextStyle(
+              fontSize: fontSizes.titleFontSize,
+              fontWeight: FontWeight.w600,
+              fontFamily: 'Kumbh Sans',
+              color: themeData.textTheme.titleLarge?.color,
+            ),
           ),
         ],
       ),
@@ -102,99 +149,78 @@ class SettingsHeader extends StatelessWidget {
 
 class SettingsItem extends StatelessWidget {
   final ResponsiveSize sizes;
+  final FontSizes fontSizes;
   final String icon;
   final String title;
   final VoidCallback onTap;
+  final ThemeData themeData;
+  final Color itemBackgroundColor;
+  final Color headerColor;
 
   const SettingsItem({
     Key? key,
     required this.sizes,
+    required this.fontSizes,
     required this.icon,
     required this.title,
     required this.onTap,
+    required this.themeData,
+    required this.itemBackgroundColor,
+    required this.headerColor,
   }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      child: Container(
-        padding: EdgeInsets.symmetric(
-          horizontal: sizes.paddingMedium,
-          vertical: sizes.paddingSmall,
-        ),
-        color: Colors.white,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Row(
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        InkWell(
+          onTap: onTap,
+          child: Container(
+            padding: EdgeInsets.symmetric(
+              horizontal: sizes.paddingMedium,
+              vertical: sizes.paddingSmall,
+            ),
+            color: itemBackgroundColor,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  icon,
-                  style: TextStyle(
-                    fontSize: sizes.iconSizeLarge,
-                    fontFamily: 'Inter',
-                  ),
+                Row(
+                  children: [
+                    Text(
+                      icon,
+                      style: TextStyle(
+                        fontSize: sizes.iconSizeLarge,
+                        fontFamily: 'Inter',
+                        color: themeData.iconTheme.color,
+                      ),
+                    ),
+                    SizedBox(width: sizes.paddingSmall),
+                    Text(
+                      title,
+                      style: TextStyle(
+                        fontSize: fontSizes.bodyFontSize,
+                        fontWeight: FontWeight.w500,
+                        color: themeData.textTheme.bodyLarge?.color,
+                      ),
+                    ),
+                  ],
                 ),
-                SizedBox(width: sizes.paddingSmall), // Add responsive spacing
-                Text(
-                  title,
-                  style: TextStyle(
-                    fontSize: sizes.bodyFontSize,
-                    fontWeight: FontWeight.w500,
-                    fontFamily: 'Kumbh Sans',
-                  ),
+                Icon(
+                  Icons.chevron_right,
+                  size: sizes.iconSizeMedium,
+                  color: themeData.iconTheme.color,
                 ),
               ],
             ),
-            Icon(
-              Icons.chevron_right,
-              size: sizes.iconSizeMedium,
-              color: Colors.black,
-            ),
-          ],
+          ),
         ),
-      ),
+        Divider(
+          color: headerColor,
+          thickness: 1,
+          height: 0,
+        ),
+      ],
     );
   }
 }
-
-class ResponsiveSize {
-  final BuildContext context;
-  ResponsiveSize(this.context);
-
-  double get scaleFactor => MediaQuery.of(context).size.width / baseWidth;
-
-  // Font Sizes
-  double get titleFontSize => 18.0 * scaleFactor;
-  double get subtitleFontSize => 18.0 * scaleFactor;
-  double get bodyFontSize => 18.0 * scaleFactor;
-
-  // Icon Sizes
-  double get iconSizeLarge => 32.0 * scaleFactor;
-  double get iconSizeMedium => 22.0 * scaleFactor;
-  double get iconSizeSmall => 16.0 * scaleFactor;
-
-  // Common Sizes (use these for paddings, margins, etc.)
-  double get paddingSmall => 8.0 * scaleFactor;
-  double get paddingMedium => 16.0 * scaleFactor;
-  double get paddingLarge => 24.0 * scaleFactor;
-
-  double get borderRadius => 8.0 * scaleFactor;
-
-  // Box Shadow Scaling
-  double get blurRadius => 5.0 * scaleFactor;
-  double get spreadRadius => 2.0 * scaleFactor;
-
-  // Other Sizes
-  double scale(double value) => value * scaleFactor;
-
-  static const double baseWidth = 375.0;
-}
-
-// Color constants
-const Color kPrimaryIconColor = Color(0xFFCACACA);
-const Color kTitleColor = Colors.black;
-const Color kSubtitleColor = Colors.black87;
-const Color kHintTextColor = Color(0xFFCACACA);
-const Color kBorderColor = Color(0xFFF1F1F1);

@@ -5,99 +5,52 @@ import 'package:flutter/scheduler.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_sound/flutter_sound.dart';
-import 'package:mapbox_maps_example/responsive_constants.dart';
+import 'package:mapbox_maps_example/theme.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:easy_localization/easy_localization.dart';
 
 import '../repository/dbUtils.dart';
 
 
-const double baseWidth = 375.0;
 
-class ResponsiveSize {
-  final BuildContext context;
-  ResponsiveSize(this.context);
-
-  double get scaleFactor => MediaQuery.of(context).size.width / baseWidth;
-
-  // Font Sizes
-  double get titleFontSize => 18.0 * scaleFactor;
-  double get subtitleFontSize => 18.0 * scaleFactor;
-  double get bodyFontSize => 18.0 * scaleFactor;
-
-  // Icon Sizes
-  double get iconSizeLarge => 32.0 * scaleFactor;
-  double get iconSizeMedium => 22.0 * scaleFactor;
-  double get iconSizeSmall => 16.0 * scaleFactor;
-
-  // Common Sizes (use these for paddings, margins, etc.)
-  double get paddingSmall => 8.0 * scaleFactor;
-  double get paddingMedium => 16.0 * scaleFactor;
-  double get paddingLarge => 24.0 * scaleFactor;
-
-  double get borderRadius => 8.0 * scaleFactor;
-
-  // Box Shadow Scaling
-  double get blurRadius => 5.0 * scaleFactor;
-  double get spreadRadius => 2.0 * scaleFactor;
-
-  // Other Sizes
-  double scale(double value) => value * scaleFactor;
-}
-const Color kPrimaryIconColor = Color(0xFFCACACA);
-const Color kTitleColor = Colors.black;
-const Color kSubtitleColor = Colors.black87;
-const Color kHintTextColor = Color(0xFFCACACA);
-const Color kBorderColor = Color(0xFFF1F1F1);
-
-class MemoryForm extends StatefulWidget {
-  const MemoryForm({Key? key}) : super(key: key);
+class MemoryForm extends ConsumerStatefulWidget {
+  const MemoryForm({super.key});
 
   @override
-  MemoryFormState createState() => MemoryFormState();
+  ConsumerState createState() => MemoryFormState();
 }
 
-class MemoryFormState extends State<MemoryForm> {
-@override
-void initState() {
-  super.initState();
-  
-  // Request permissions asynchronously
-  checkAndRequestPermissions();
+class MemoryFormState extends ConsumerState<MemoryForm> {
+  @override
+  @override
+  void initState() {
+    super.initState();
+    _setup();
+  }
 
-  // Initialize the player
-  _player.openPlayer().catchError((e) {
-    debugPrint("Error opening player: $e");
-  });
+  Future<void> _setup() async {
+    await checkAndRequestPermissions();
+    try {
+      await _player.openPlayer();
+    } catch (e) {
+      debugPrint("Error opening player: $e");
+    }
+    await _initializeRecorder();
 
-  // Initialize the recorder
-  _initializeRecorder();
-}
+    if (_isRecorderInitialized) {
+      debugPrint("Recorder is initialized.");
+    } else {
+      debugPrint("Recorder initialization failed.");
+    }
+  }
+
   late AppDatabase appDatabase;
 
 
   DateTime _selectedDate = DateTime.now();
   final List<File> _selectedImages = [];
-  final List<String> mockContacts = [
-    "Alice Johnson",
-    "Alice Smith",
-    "Alice Brown",
-    "Bob Smith",
-    "Charlie Brown",
-    "Diana Prince",
-    "Eve Torres"
-  ];
-
-  final List<String> mockHashtags = [
-    "#Flutter",
-    "#Dart",
-    "#UI",
-    "#Code",
-    "#Development",
-    "#OpenSource",
-    "#Mobile",
-    "#AppDevelopment"
-  ];
 
   final List<String> selectedHashtags = [];
   final List<String> selectedContacts = [];
@@ -133,6 +86,7 @@ void initState() {
       selectedContacts.remove(contact);
     });
   }
+
   String formatContact(String contact) {
     List<String> parts = contact.split(' ');
     if (parts.isNotEmpty) {
@@ -146,7 +100,8 @@ void initState() {
   String _formatDuration(int seconds) {
     final minutes = seconds ~/ 60;
     final remainingSeconds = seconds % 60;
-    return '${minutes.toString().padLeft(2, '0')}:${remainingSeconds.toString().padLeft(2, '0')}';
+    return '${minutes.toString().padLeft(2, '0')}:${remainingSeconds.toString()
+        .padLeft(2, '0')}';
   }
 
   Future<void> _pickDateTime() async {
@@ -192,31 +147,31 @@ void initState() {
   }
 
 
-
-
   bool _isRecorderInitialized = false;
   final ValueNotifier<int> _currentDuration = ValueNotifier<int>(0);
   Timer? _recordingTimer;
-
   Future<void> checkAndRequestPermissions() async {
-    // Request notification permission
-    if (await Permission.notification.request().isDenied) {
-      print("Notification permission denied");
-    }
-
-    // Request media permissions
-    if (await Permission.audio.request().isDenied) {
-      print("Audio permission denied");
-    }
-    if (await Permission.mediaLibrary.request().isDenied) {
-      print("Media library permission denied");
+    final status = await Permission.microphone.status;
+    if (status.isDenied) {
+      final result = await Permission.microphone.request();
+      if (result.isGranted) {
+        debugPrint("Microphone permission granted");
+      } else {
+        debugPrint("Microphone permission denied");
+        openAppSettings();
+      }
+    } else if (status.isGranted) {
+      debugPrint("Microphone permission already granted");
+    } else {
+      debugPrint("Microphone permission permanently denied");
+      openAppSettings(); // Guide user to manually enable permissions
     }
   }
 
-
   final FlutterSoundPlayer _player = FlutterSoundPlayer();
 
-  final GlobalKey<AnimatedListState> _animatedListKey = GlobalKey<AnimatedListState>();
+  final GlobalKey<AnimatedListState> _animatedListKey = GlobalKey<
+      AnimatedListState>();
   final GlobalKey _addTextFieldKey = GlobalKey();
 
   final FlutterSoundRecorder _recorder = FlutterSoundRecorder();
@@ -228,19 +183,12 @@ void initState() {
 
       if (status.isGranted) {
         await _recorder.openRecorder();
+        debugPrint("Recorder initialized successfully");
         setState(() {
           _isRecorderInitialized = true;
         });
       } else {
-        final result = await Permission.microphone.request();
-        if (result.isGranted) {
-          await _recorder.openRecorder();
-          setState(() {
-            _isRecorderInitialized = true;
-          });
-        } else {
-          debugPrint("Microphone permission denied");
-        }
+        debugPrint("Microphone permission not granted");
       }
     } catch (e) {
       debugPrint("Error initializing recorder: $e");
@@ -264,10 +212,16 @@ void initState() {
     _player.closePlayer();
     super.dispose();
   }
+
   int _recordingDuration = 0;
 
   Future<void> _startRealRecording() async {
-    if (_isRecorderInitialized && !_isRecording) {
+    if (!_isRecorderInitialized) {
+      debugPrint("Recorder is not initialized.");
+      return;
+    }
+
+    if (!_isRecording) {
       try {
         final directory = await getApplicationDocumentsDirectory();
         final filePath = '${directory.path}/Recording_${DateTime.now().millisecondsSinceEpoch}.aac';
@@ -280,15 +234,19 @@ void initState() {
           _currentDuration.value = 0;
         });
 
-        // Start the duration timer
         _recordingTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
           _currentDuration.value++;
         });
+
+        debugPrint("Recording started: $filePath");
       } catch (e) {
         debugPrint("Error starting recorder: $e");
       }
+    } else {
+      debugPrint("Already recording.");
     }
   }
+
   Future<void> _stopRealRecording() async {
     if (_isRecording) {
       try {
@@ -312,7 +270,7 @@ void initState() {
 
           // Delay the scroll action to make sure the item has been added
           SchedulerBinding.instance.addPostFrameCallback((_) {
-            Future.delayed(Duration(milliseconds: 100), () {
+            Future.delayed(Duration(milliseconds: 300), () {
               _scrollController.animateTo(
                 _scrollController.position.maxScrollExtent,
                 duration: const Duration(milliseconds: 300),
@@ -354,7 +312,8 @@ void initState() {
           fromURI: _audioMessages[index]['path'],
           codec: Codec.aacADTS,
           whenFinished: () {
-            print("Playback Finished for Recording ${_audioMessages[index]['name']}");
+            print(
+                "Playback Finished for Recording ${_audioMessages[index]['name']}");
 
             _playbackTimer?.cancel();
             setState(() {
@@ -376,7 +335,8 @@ void initState() {
             setState(() {
               _audioMessages[index]['currentPosition']++;
             });
-            print("Timer Update - Current Position: ${_audioMessages[index]['currentPosition']} seconds");
+            print(
+                "Timer Update - Current Position: ${_audioMessages[index]['currentPosition']} seconds");
           } else {
             timer.cancel();
           }
@@ -389,42 +349,40 @@ void initState() {
 
   @override
   Widget build(BuildContext context) {
-    final sizes = ResponsiveSize(context);
+    final sizes = ref.watch(responsiveSizeProvider(context)); // Responsive sizes
+    final themeData = ref.watch(themeProvider); // Dynamic theme
+    final themeNotifier = ref.read(themeProvider.notifier); // Theme notifier
+    final headerColor = themeNotifier.headerColor; // Header background color
+    final fontSizes = themeNotifier.fontSizes; // Dynamic font sizes
 
-    return Container(
-
-      decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 4 * sizes.scaleFactor,
-          ),
-        ],
-      ),
-      child: Column(
-
+    return Scaffold(
+      backgroundColor: headerColor,
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Expanded(
             child: SingleChildScrollView(
               controller: _scrollController,
-              reverse: true,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildDateTimeField(sizes),
-                  _buildLocationField(sizes),
-                  _buildContactField(sizes),
-                  _buildTagField(sizes),
-                  _buildLibraryField(sizes),
-                  _buildTextField(sizes),
-                ].map((child) {
-                  // Reduce space between each section
-                  return Padding(
-                    padding: EdgeInsets.symmetric(vertical: 10.0 * sizes.scaleFactor),
-                    child: child,
-                  );
-                }).toList(),
+                  _buildDateTimeField(sizes, themeData, fontSizes),
+                  _buildDivider(sizes, themeData),
+
+                  _buildLocationField(sizes, themeData, fontSizes),
+                  _buildDivider(sizes, themeData),
+
+                  _buildContactField(sizes, themeData, fontSizes),
+                  _buildDivider(sizes, themeData),
+
+                  _buildTagField(sizes, themeData, fontSizes),
+                  _buildDivider(sizes, themeData),
+
+                  _buildLibraryField(sizes, themeData, fontSizes),
+                  _buildDivider(sizes, themeData),
+
+                  _buildTextField(sizes, themeData, fontSizes),
+                ],
               ),
             ),
           ),
@@ -433,17 +391,14 @@ void initState() {
     );
   }
 
-  Widget _buildTextField(ResponsiveSize sizes) {
-    final double horizontalPadding = 16 * sizes.scaleFactor;
-    final double verticalPadding = 8 * sizes.scaleFactor;
 
+  Widget _buildTextField(ResponsiveSize sizes, ThemeData theme, FontSizes fontSizes) {
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: horizontalPadding, vertical: verticalPadding),
-      decoration: BoxDecoration(
-        border: Border(
-          bottom: BorderSide(color: Colors.grey.shade300, width: 1 * sizes.scaleFactor),
-        ),
+      padding: EdgeInsets.symmetric(
+        horizontal: sizes.paddingMedium,
+        vertical: sizes.paddingSmall,
       ),
+      color: theme.cardColor,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -453,27 +408,23 @@ void initState() {
                 'assets/icons/message-text.svg',
                 width: sizes.iconSizeLarge,
                 height: sizes.iconSizeLarge,
-                color: kPrimaryIconColor,
+                color: theme.iconTheme.color,
               ),
-              SizedBox(width: 6 * sizes.scaleFactor),
-
+              SizedBox(width: sizes.paddingSmall),
               Text(
-                'Text & Audio',
-                style: TextStyle(
-                  color: kHintTextColor,
-                  fontFamily: 'Poppins',
-                  fontWeight: FontWeight.w500,
-                  fontSize: sizes.subtitleFontSize,
+                tr('text_and_audio'),
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  fontSize: fontSizes.bodyFontSize,
+                  color: theme.hintColor,
                 ),
               ),
             ],
           ),
           if (_audioMessages.isNotEmpty)
             Padding(
-              padding: EdgeInsets.only(top: 8 * sizes.scaleFactor),
+              padding: EdgeInsets.only(top: sizes.paddingSmall),
               child: AnimatedList(
                 key: _animatedListKey,
-                controller: _scrollController,  // Attach the scroll controller here
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
                 initialItemCount: _audioMessages.length,
@@ -482,93 +433,109 @@ void initState() {
                   return SizeTransition(
                     sizeFactor: animation,
                     axisAlignment: 1.0,
-                    child: _buildAudioListItem(audio, sizes, index),
+                    child: _buildAudioListItem(audio, sizes, index, theme, fontSizes),
                   );
                 },
               ),
             ),
-          SizedBox(height: 8 * sizes.scaleFactor),
-          Row(
-            children: [
-              Expanded(
-                child: Container(
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.grey.shade300, width: 1 * sizes.scaleFactor),
-                    borderRadius: BorderRadius.circular(8 * sizes.scaleFactor),
-                  ),
-                  child: TextField(
-                    maxLines: null,
-                    minLines: 1,
-                    decoration: InputDecoration(
-                      hintText: 'Add Text',
-                      border: InputBorder.none,
-                      contentPadding: EdgeInsets.symmetric(
-                        vertical: 10 * sizes.scaleFactor,
-                        horizontal: 12 * sizes.scaleFactor,
+          SizedBox(height: sizes.paddingSmall),
+          Padding(
+            padding: EdgeInsets.only(bottom: sizes.paddingMedium),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      border: Border.all(
+                        color: theme.dividerColor,
+                        width: sizes.scaleFactor,
                       ),
-                      hintStyle: TextStyle(color: kHintTextColor, fontSize: sizes.bodyFontSize),
+                      borderRadius: BorderRadius.circular(sizes.borderRadius),
                     ),
-                    style: TextStyle(fontSize: sizes.bodyFontSize),
-                  ),
-                ),
-              ),
-              SizedBox(width: 8 * sizes.scaleFactor),
-              GestureDetector(
-                key: _addTextFieldKey,
-                onTapDown: (_) async {
-                  _currentDuration.value = 0;
-                  await _startRealRecording();
-                },
-                onTapUp: (_) async => await _stopRealRecording(),
-                child: Column(
-                  children: [
-                    Container(
-                      width: 50 * sizes.scaleFactor,
-                      height: 50 * sizes.scaleFactor,
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(8 * sizes.scaleFactor),
-                        boxShadow: [
-                          if (_isRecording)
-                            BoxShadow(
-                              color: Colors.red.withOpacity(0.6),
-                              blurRadius: 10 * sizes.scaleFactor,
-                              spreadRadius: 2 * sizes.scaleFactor,
-                            ),
-                        ],
-                        border: Border.all(color: Colors.grey.shade300, width: 1 * sizes.scaleFactor),
-                      ),
-                      child: Center(
-                        child: SvgPicture.asset(
-                          'assets/icons/microphone-2.svg',
-                          width: sizes.iconSizeMedium,
-                          height: sizes.iconSizeMedium,
-                          color: _isRecording ? Colors.red : kPrimaryIconColor,
+                    child: TextField(
+                      maxLines: null,
+                      minLines: 1,
+                      decoration: InputDecoration(
+                        hintText: tr('add_text'),
+                        border: InputBorder.none,
+                        contentPadding: EdgeInsets.symmetric(
+                          vertical: sizes.paddingSmall,
+                          horizontal: sizes.paddingMedium,
+                        ),
+                        hintStyle: theme.textTheme.bodyLarge?.copyWith(
+                          color: theme.hintColor,
+                          fontSize: fontSizes.bodyFontSize,
                         ),
                       ),
-                    ),
-                    if (_isRecording)
-                      ValueListenableBuilder<int>(
-                        valueListenable: _currentDuration,
-                        builder: (context, duration, _) {
-                          return Text(
-                            _formatDuration(duration),
-                            style: TextStyle(fontSize: sizes.bodyFontSize, color: Colors.red),
-                          );
-                        },
+                      style: theme.textTheme.bodyLarge?.copyWith(
+                        fontSize: fontSizes.bodyFontSize,
                       ),
-                  ],
+                    ),
+                  ),
                 ),
-              ),
-            ],
+                SizedBox(width: sizes.paddingSmall),
+                GestureDetector(
+                  key: _addTextFieldKey,
+                  onTapDown: (_) async {
+                    _currentDuration.value = 0;
+                    await _startRealRecording();
+                  },
+                  onTapUp: (_) async => await _stopRealRecording(),
+                  child: Column(
+                    children: [
+                      Container(
+                        height: sizes.iconSizeLarge + sizes.paddingSmall * 2,
+                        width: sizes.iconSizeLarge + sizes.paddingSmall * 2,
+                        decoration: BoxDecoration(
+                          color: theme.cardColor,
+                          borderRadius: BorderRadius.circular(sizes.borderRadius),
+                          boxShadow: [
+                            if (_isRecording)
+                              BoxShadow(
+                                color: Colors.red.withOpacity(0.6),
+                                blurRadius: sizes.blurRadius,
+                                spreadRadius: sizes.spreadRadius,
+                              ),
+                          ],
+                          border: Border.all(
+                            color: theme.dividerColor,
+                            width: sizes.scaleFactor,
+                          ),
+                        ),
+                        child: Center(
+                          child: SvgPicture.asset(
+                            'assets/icons/microphone-2.svg',
+                            width: sizes.iconSizeMedium,
+                            height: sizes.iconSizeMedium,
+                            color: _isRecording ? Colors.red : theme.iconTheme.color,
+                          ),
+                        ),
+                      ),
+                      if (_isRecording)
+                        ValueListenableBuilder<int>(
+                          valueListenable: _currentDuration,
+                          builder: (context, duration, _) {
+                            return Text(
+                              _formatDuration(duration),
+                              style: theme.textTheme.bodyLarge?.copyWith(
+                                fontSize: fontSizes.bodyFontSize,
+                                color: Colors.red,
+                              ),
+                            );
+                          },
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
     );
   }
 
-
-  Widget _buildAudioListItem(Map<String, dynamic> audio, ResponsiveSize sizes, int index) {
+  Widget _buildAudioListItem(Map<String, dynamic> audio, ResponsiveSize sizes, int index, ThemeData theme, FontSizes fontSizes) {
     final TextEditingController editController = TextEditingController(text: audio['name']);
     final bool isEditing = audio['isEditing'];
     final bool isPlaying = audio['isPlaying'];
@@ -578,29 +545,32 @@ void initState() {
       direction: DismissDirection.endToStart,
       background: Container(
         alignment: Alignment.centerRight,
-        color: Colors.red,
+        color: theme.colorScheme.error,
         child: Padding(
-          padding: EdgeInsets.only(right: 16 * sizes.scaleFactor),
-          child: Icon(Icons.delete, color: Colors.white, size: sizes.iconSizeMedium),
+          padding: EdgeInsets.only(right: sizes.paddingMedium),
+          child: Icon(
+            Icons.delete,
+            color: theme.colorScheme.onError,
+            size: sizes.iconSizeMedium,
+          ),
         ),
       ),
       onDismissed: (direction) {
-        final removedAudio = _audioMessages[index];
+        final removedAudio = audio;
         final removedIndex = index;
+
         _audioMessages.removeAt(index);
 
-        setState(() {
-          _animatedListKey.currentState?.removeItem(
-            removedIndex,
-                (context, animation) => Container(),
-          );
-        });
+        _animatedListKey.currentState?.removeItem(
+          removedIndex,
+              (context, animation) => Container(),
+        );
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('${removedAudio['name']} deleted'),
+            content: Text('${removedAudio['name']} ${tr('deleted')}'),
             action: SnackBarAction(
-              label: 'Undo',
+              label: tr('undo'),
               onPressed: () {
                 setState(() {
                   _audioMessages.insert(removedIndex, removedAudio);
@@ -608,21 +578,30 @@ void initState() {
                 });
               },
             ),
+            duration: const Duration(seconds: 1),
           ),
+
         );
       },
       child: GestureDetector(
         onLongPress: () {
           setState(() {
-            _audioMessages[index]['isEditing'] = true;
+            audio['isEditing'] = true;
           });
         },
         child: Container(
-          margin: EdgeInsets.only(bottom: 8 * sizes.scaleFactor),
-          padding: EdgeInsets.all(12 * sizes.scaleFactor),
+          margin: EdgeInsets.only(bottom: sizes.paddingSmall),
+          padding: EdgeInsets.all(sizes.paddingSmall),
           decoration: BoxDecoration(
-            color: Colors.grey.shade200,
-            borderRadius: BorderRadius.circular(8 * sizes.scaleFactor),
+            color: theme.cardColor,
+            boxShadow: [
+              BoxShadow(
+                color: theme.shadowColor.withOpacity(0.2),
+                blurRadius: sizes.blurRadius * 1.2,
+                spreadRadius: sizes.spreadRadius * 1.2,
+                offset: Offset(0, 0),
+              ),
+            ],
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -633,43 +612,61 @@ void initState() {
                   controller: editController,
                   decoration: InputDecoration(
                     border: InputBorder.none,
-                    hintText: 'Enter audio name',
-                    hintStyle: TextStyle(
-                      color: Colors.grey,
-                      fontSize: sizes.bodyFontSize,
+                    hintText: tr('enter_audio_name'),
+                    hintStyle: theme.textTheme.bodyLarge?.copyWith(
+                      fontSize: fontSizes.bodyFontSize,
+                      color: theme.hintColor,
                     ),
                   ),
-                  style: TextStyle(fontSize: sizes.bodyFontSize, color: Colors.black),
+                  style: theme.textTheme.bodyLarge?.copyWith(
+                    fontSize: fontSizes.bodyFontSize,
+                  ),
+                  onSubmitted: (value) {
+                    setState(() {
+                      audio['name'] = value.trim().isEmpty ? audio['name'] : value.trim();
+                      audio['isEditing'] = false;
+                    });
+                  },
                 )
                     : Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       audio['name'],
-                      style: TextStyle(fontSize: sizes.bodyFontSize, color: Colors.black),
+                      style: theme.textTheme.bodyLarge?.copyWith(
+                        fontSize: fontSizes.bodyFontSize,
+                        color: theme.colorScheme.onSurface,
+                      ),
                     ),
                     Text(
                       '${_formatDuration(audio['currentPosition'])} / ${_formatDuration(audio['duration'])}',
-                      style: TextStyle(fontSize: sizes.bodyFontSize, color: Colors.grey),
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        fontSize: fontSizes.bodyFontSize,
+                        color: theme.hintColor,
+                      ),
                     ),
                   ],
                 ),
               ),
               IconButton(
-
                 icon: isEditing
-                    ? Icon(Icons.check, color: Colors.green, size: sizes.iconSizeMedium)
-                    : isPlaying
-                    ? Icon(Icons.pause, color: Colors.green, size: sizes.iconSizeMedium)
-                    : Icon(Icons.play_arrow, color: Colors.green, size: sizes.iconSizeMedium),
-
+                    ? Icon(
+                  Icons.check,
+                  color: theme.colorScheme.primary,
+                  size: sizes.iconSizeMedium,
+                )
+                    : Icon(
+                  isPlaying ? Icons.pause : Icons.play_arrow,
+                  color: theme.colorScheme.primary,
+                  size: sizes.iconSizeMedium,
+                ),
                 onPressed: isEditing
                     ? () {
                   setState(() {
-                    _audioMessages[index]['name'] = editController.text.trim().isEmpty
+                    audio['name'] = editController.text.trim().isEmpty
                         ? audio['name']
                         : editController.text.trim();
-                    _audioMessages[index]['isEditing'] = false;
+                    audio['isEditing'] = false;
                   });
                 }
                     : () => _playAudio(index),
@@ -681,286 +678,147 @@ void initState() {
     );
   }
 
-  Widget _buildDateTimeField(ResponsiveSize sizes) {
-    return GestureDetector(
-      onTap: _pickDateTime,
-      child: _buildSection(
-        sizes: sizes,
-        iconSvg: 'assets/icons/calendar.svg',
-        title: 'Date & Time',
-        content:
-        '${_selectedDate.day.toString().padLeft(2, '0')}.${_selectedDate.month.toString().padLeft(2, '0')}.${_selectedDate.year} '
-            '${_selectedDate.hour.toString().padLeft(2, '0')}:${_selectedDate.minute.toString().padLeft(2, '0')}',
-        trailingSvg: 'assets/icons/edit-2.svg',
-      ),
+
+  Widget _buildDateTimeField(ResponsiveSize sizes, ThemeData themeData, FontSizes fontSizes) {
+    final formattedDate = "${_selectedDate.day}/${_selectedDate.month}/${_selectedDate.year}";
+    final formattedTime = "${_selectedDate.hour}:${_selectedDate.minute.toString().padLeft(2, '0')}";
+
+    return _buildSection(
+      sizes: sizes,
+      iconSvg: 'assets/icons/calendar.svg',
+      title: tr('date_time'),
+      content: "$formattedDate $formattedTime",
+      themeData: themeData,
+      fontSizes: fontSizes,
     );
   }
-
-  Widget _buildLocationField(ResponsiveSize sizes) {
-    return  _buildSection(
+  Widget _buildLocationField(ResponsiveSize sizes, ThemeData themeData, FontSizes fontSizes) {
+    return _buildSection(
       sizes: sizes,
       iconSvg: 'assets/icons/location.svg',
-      title: 'Location',
-      content:'Germany 46.23, 34.214',
-      trailingSvg: 'assets/icons/edit-2.svg',
+      title: tr('location'),
+      content: "Germany : 46.23, 34.214",
+      themeData: themeData,
+      fontSizes: fontSizes,
     );
   }
 
-  Widget _buildContactField(ResponsiveSize sizes) {
+  Widget _buildContactField(ResponsiveSize sizes, ThemeData themeData, FontSizes fontSizes) {
     return _buildInputFieldSearch(
       sizes: sizes,
       iconSvg: 'assets/icons/user.svg',
-      title: "Add Contacts",
-      mockItems: mockContacts,
+      title: tr('add_contacts'),
       selectedItems: selectedContacts,
-      onAddItem: addContact,
-      onRemoveItem: removeContact,
-      emptyMessage: "No Contact Found",
+      mockItems: ["John Doe", "Alice Smith","Bob Johnson" , "Bob Johnson" , "Bob Johnson" ,  "Bob Johnson" , "Alice Smith" , "Alice Smith"],
+      onAddItem: (item) {
+        setState(() {
+          if (!selectedContacts.contains(item)) {
+            selectedContacts.add(item);
+          }
+        });
+      },
+      onRemoveItem: (item) {
+        setState(() {
+          selectedContacts.remove(item);
+        });
+      },
+      emptyMessage: tr('no_contacts_found'),
+      theme: themeData,
+      fontSizes: fontSizes,
     );
   }
 
-  Widget _buildTagField(ResponsiveSize sizes) {
+
+  Widget _buildTagField(ResponsiveSize sizes, ThemeData themeData, FontSizes fontSizes) {
     return _buildInputFieldSearch(
       sizes: sizes,
       icon: Icons.tag,
-      title: "Search Hashtags",
-      mockItems: mockHashtags,
+      title: tr('add_tags'),
       selectedItems: selectedHashtags,
-      onAddItem: addHashtag,
-      onRemoveItem: removeHashtag,
-      emptyMessage: "No Hashtag Found",
+      mockItems: ["#Flutter", "#Dart", "#UI", "#Development", "#Code"],
+      onAddItem: (item) {
+        setState(() {
+          if (!selectedHashtags.contains(item)) {
+            selectedHashtags.add(item);
+          }
+        });
+      },
+      onRemoveItem: (item) {
+        setState(() {
+          selectedHashtags.remove(item);
+        });
+      },
+      emptyMessage: tr('no_tags_found'),
+      theme: themeData,
+      fontSizes: fontSizes,
     );
   }
 
-  Widget _buildLibraryField(ResponsiveSize sizes) {
-    return _buildInputField1(
-      sizes: sizes,
-      iconSvg: 'assets/icons/gallery.svg',
-      title: 'Photos & Videos',
-      mediaFiles: _selectedImages,
-      onAddPressed: _pickMedia,
-    );
-  }
-
-
-  Widget _buildSection({
-    required ResponsiveSize sizes,
-    required String iconSvg,
-    required String title,
-    required String content,
-    String? trailingSvg,
-  }) {
-    final double horizontalPadding = 16 * sizes.scaleFactor;
-    final double verticalPadding = 12 * sizes.scaleFactor;
-
+  Widget _buildLibraryField(ResponsiveSize sizes, ThemeData theme, FontSizes fontSizes) {
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: horizontalPadding, vertical: verticalPadding),
-      decoration: BoxDecoration(
-        border: Border(bottom: BorderSide(color: kBorderColor, width: 1 * sizes.scaleFactor)),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Row(
-            children: [
-              SvgPicture.asset(
-                iconSvg,
-                width: sizes.iconSizeLarge,
-                height: sizes.iconSizeLarge,
-                color: Colors.grey,
-              ),
-              SizedBox(width: 8 * sizes.scaleFactor),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  SizedBox(height: 5 * sizes.scaleFactor),
-                  Text(
-                    content,
-                    style: TextStyle(
-                      color: kTitleColor,
-                      fontSize: sizes.titleFontSize,
-                      fontWeight: FontWeight.w400,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-          if (trailingSvg != null)
-            Container(
-              width: sizes.iconSizeLarge*1.5,
-              height: sizes.iconSizeLarge *1.2,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(6 * sizes.scaleFactor),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.grey.withOpacity(0.5),
-                    spreadRadius: 2 * sizes.scaleFactor,
-                    blurRadius: 2 * sizes.scaleFactor,
-                    offset: Offset(0, 1 * sizes.scaleFactor),
-                  ),
-                ],
-              ),
-              child: Center(
-                child: SvgPicture.asset(
-                  trailingSvg,
-                  width: sizes.iconSizeLarge,
-                  height: sizes.iconSizeMedium,
-                  color: Colors.grey,
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSectionWithIconData({
-    required ResponsiveSize sizes,
-    required IconData icon,
-    required String title,
-    required String content,
-    IconData? trailing,
-    String? trailingSvg,
-  }) {
-    final double horizontalPadding = 16 * sizes.scaleFactor;
-    final double verticalPadding = 12 * sizes.scaleFactor;
-
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: horizontalPadding, vertical: verticalPadding),
-      decoration: BoxDecoration(
-        border: Border(bottom: BorderSide(color: kBorderColor, width: 1 * sizes.scaleFactor)),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Row(
-            children: [
-              Icon(icon, size: sizes.iconSizeLarge, color: Colors.grey),
-              SizedBox(width: 8 * sizes.scaleFactor),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  SizedBox(height: 5 * sizes.scaleFactor),
-                  Text(
-                    content,
-                    style: TextStyle(
-                      color: kTitleColor,
-                      fontSize: sizes.titleFontSize,
-                      fontWeight: FontWeight.w400,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-          if (trailingSvg != null)
-            Container(
-              width: sizes.iconSizeLarge,
-              height: sizes.iconSizeLarge,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(6 * sizes.scaleFactor),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.grey.withOpacity(0.5),
-                    spreadRadius: 2 * sizes.scaleFactor,
-                    blurRadius: 5 * sizes.scaleFactor,
-                    offset: Offset(0, 3 * sizes.scaleFactor),
-                  ),
-                ],
-              ),
-              child: Center(
-                child: SvgPicture.asset(
-                  trailingSvg,
-                  width: sizes.iconSizeSmall,
-                  height: sizes.iconSizeSmall,
-                  color: Colors.grey,
-                ),
-              ),
-            )
-          else if (trailing != null)
-            Container(
-              width: sizes.iconSizeLarge,
-              height: sizes.iconSizeLarge,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(6 * sizes.scaleFactor),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.grey.withOpacity(0.5),
-                    spreadRadius: 2 * sizes.scaleFactor,
-                    blurRadius: 5 * sizes.scaleFactor,
-                    offset: Offset(0, 3 * sizes.scaleFactor),
-                  ),
-                ],
-              ),
-              child: Center(
-                child: Icon(trailing, size: sizes.iconSizeSmall, color: Colors.grey),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildInputField1({
-    required ResponsiveSize sizes,
-    String? iconSvg,
-    IconData? icon,
-    required String title,
-    required List<File> mediaFiles,
-    VoidCallback? onAddPressed,
-  }) {
-    final double paddingValue = 16 * sizes.scaleFactor;
-    final double itemSize = 80.0 * sizes.scaleFactor;
-
-    final Widget leadingIcon = iconSvg != null
-        ? SvgPicture.asset(iconSvg, width: sizes.iconSizeLarge, height: sizes.iconSizeLarge, color: Colors.grey)
-        : Icon(icon, size: sizes.iconSizeLarge, color: Colors.grey);
-
-    return Container(
-      padding: EdgeInsets.all(paddingValue),
-      decoration: BoxDecoration(
-        border: Border(bottom: BorderSide(color: kBorderColor, width: 1 * sizes.scaleFactor)),
+      color: theme.cardColor,
+      padding: EdgeInsets.symmetric(
+        horizontal: sizes.paddingMedium,
+        vertical: sizes.paddingSmall,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              leadingIcon,
-              SizedBox(width: 8 * sizes.scaleFactor),
+              SvgPicture.asset(
+                'assets/icons/gallery.svg',
+                width: sizes.iconSizeLarge,
+                height: sizes.iconSizeLarge,
+                color: theme.hintColor,
+              ),
+              SizedBox(width: sizes.paddingSmall),
               Text(
-                title,
-                style: TextStyle(
-                  color: kHintTextColor,
-                  fontSize: sizes.subtitleFontSize,
+                tr('photos_videos'),
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  fontSize: fontSizes.bodyFontSize,
                   fontWeight: FontWeight.w400,
+                  color: theme.hintColor,
                 ),
               ),
             ],
           ),
-          SizedBox(height: 8 * sizes.scaleFactor),
-
+          SizedBox(height: sizes.paddingSmall),
           Wrap(
             spacing: 4.0 * sizes.scaleFactor,
             runSpacing: 4.0 * sizes.scaleFactor,
             children: [
-              ...mediaFiles.map((file) => _buildMediaItem(
-                sizes: sizes,
-                imageFile: file,
-                onDelete: () => _removeImage(file),
-                size: itemSize,
-              )),
+              ..._selectedImages.map(
+                    (file) => _buildMediaItem(
+                  sizes: sizes,
+                  imageFile: file,
+                  onDelete: () => _removeImage(file),
+                  size: 80.0 * sizes.scaleFactor,
+                  theme: theme,
+                  fontSizes: fontSizes,
+                ),
+              ),
               GestureDetector(
-                onTap: onAddPressed,
+                onTap: _pickMedia,
                 child: Container(
-                  width: itemSize,
-                  height: itemSize,
-                  color: Colors.black,
-                  child: Icon(Icons.add, color: Colors.white, size: sizes.iconSizeMedium),
+                  width: 80.0 * sizes.scaleFactor,
+                  height: 80.0 * sizes.scaleFactor,
+                  decoration: BoxDecoration(
+                    color: theme.cardColor,
+                    boxShadow: [
+                      BoxShadow(
+                        color: theme.shadowColor.withOpacity(0.5),
+                        spreadRadius:1 * sizes.scaleFactor,
+                        blurRadius: 2 * sizes.scaleFactor,
+                        offset: Offset(0, 1 * sizes.scaleFactor),
+                      ),
+                    ],
+                  ),
+                  child: Icon(
+                    Icons.add,
+                    color: theme.colorScheme.onSurface,
+                    size: sizes.iconSizeMedium,
+                  ),
                 ),
               ),
             ],
@@ -970,16 +828,78 @@ void initState() {
     );
   }
 
+
+  Widget _buildSection({
+    required ResponsiveSize sizes,
+    required String title,
+    required String content,
+    String? iconSvg,
+    IconData? icon,
+    required ThemeData themeData,
+    required FontSizes fontSizes,
+  }) {
+    final Widget leadingIcon = iconSvg != null
+        ? SvgPicture.asset(
+      iconSvg,
+      width: sizes.iconSizeLarge,
+      height: sizes.iconSizeLarge,
+      color: themeData.iconTheme.color,
+    )
+        : Icon(
+      icon,
+      size: sizes.iconSizeLarge,
+      color: themeData.iconTheme.color,
+    );
+
+    return Container(
+      padding: EdgeInsets.all(sizes.paddingMedium),
+      decoration: BoxDecoration(
+        color: themeData.cardColor,
+      ),
+      child: Row(
+        children: [
+          leadingIcon,
+          SizedBox(width: sizes.paddingSmall),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: themeData.textTheme.bodyLarge?.copyWith(
+                    fontSize: fontSizes.bodyFontSize,
+                    fontWeight: FontWeight.bold,
+                    color: themeData.colorScheme.onSurface,
+                  ),
+                ),
+                Text(
+                  content,
+                  style: themeData.textTheme.bodyMedium?.copyWith(
+                    fontSize: fontSizes.bodyFontSize,
+                    color: themeData.colorScheme.onSurface,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+
+
   Widget _buildMediaItem({
     required ResponsiveSize sizes,
     required File imageFile,
     required VoidCallback onDelete,
     required double size,
+    required ThemeData theme,
+    required FontSizes fontSizes,
   }) {
     return Stack(
       children: [
         ClipRRect(
-          borderRadius: BorderRadius.circular(4 * sizes.scaleFactor),
           child: Image.file(
             imageFile,
             width: size,
@@ -993,18 +913,23 @@ void initState() {
           child: GestureDetector(
             onTap: onDelete,
             child: Container(
-              decoration: const BoxDecoration(
-                color: Colors.red,
+              decoration: BoxDecoration(
+                color: theme.colorScheme.error,
                 shape: BoxShape.circle,
               ),
               padding: EdgeInsets.all(4 * sizes.scaleFactor),
-              child: Icon(Icons.close, color: Colors.white, size: sizes.iconSizeSmall),
+              child: Icon(
+                Icons.close,
+                color: theme.colorScheme.onError,
+                size: sizes.iconSizeSmall,
+              ),
             ),
           ),
         ),
       ],
     );
   }
+
 
   Widget _buildInputFieldSearch({
     required ResponsiveSize sizes,
@@ -1016,12 +941,24 @@ void initState() {
     required Function(String) onAddItem,
     required Function(String) onRemoveItem,
     required String emptyMessage,
+    required ThemeData theme,
+    required FontSizes fontSizes,
   }) {
     final TextEditingController searchController = TextEditingController();
     final FocusNode searchFocusNode = FocusNode();
-    final LayerLink layerLink = LayerLink();
     OverlayEntry? overlayEntry;
     List<String> filteredItems = List.from(mockItems);
+
+    // Format contact function for selected items
+    String formatContact(String contact) {
+      List<String> parts = contact.split(' ');
+      if (parts.isNotEmpty) {
+        return parts.length > 1
+            ? '${parts.first} ${parts.last[0]}.'
+            : parts.first;
+      }
+      return contact;
+    }
 
     void hideOverlay() {
       overlayEntry?.remove();
@@ -1029,66 +966,78 @@ void initState() {
     }
 
     void showOverlay(BuildContext context) {
-      hideOverlay();
-
+      hideOverlay(); // Remove any existing overlay
       WidgetsBinding.instance.addPostFrameCallback((_) {
         final RenderBox renderBox = context.findRenderObject() as RenderBox;
         final position = renderBox.localToGlobal(Offset.zero);
         final size = renderBox.size;
 
+        final int itemCount = filteredItems.length;
+        final double itemHeight = 48 * sizes.scaleFactor; // Height for each item
+        final double maxOverlayHeight = 5 * itemHeight; // Max height for 5 items
+        final double overlayHeight = (itemCount * itemHeight).clamp(0.0, maxOverlayHeight);
+
         overlayEntry = OverlayEntry(
-          builder: (context) => Positioned(
-            left: position.dx - 48,
-            top: position.dy + size.height + 15 * sizes.scaleFactor,
-            width: (size.width + 60) * sizes.scaleFactor,
-            child: Material(
-              elevation: 4 * sizes.scaleFactor,
-              color: Colors.transparent,
-              borderRadius: BorderRadius.circular(8 * sizes.scaleFactor),
-              child: Container(
-                decoration: BoxDecoration(
-                  color: Colors.white,
+          builder: (context) => Stack(
+            children: [
+              GestureDetector(
+                onTap: hideOverlay,
+                behavior: HitTestBehavior.translucent,
+                child: Container(color: Colors.transparent),
+              ),
+              Positioned(
+                left: position.dx * .3,
+                top: position.dy + size.height + sizes.scaleFactor + 15,
+                width: size.width * 1.15,
+                child: Material(
+                  elevation: 4 * sizes.scaleFactor,
                   borderRadius: BorderRadius.circular(8 * sizes.scaleFactor),
-                  border: Border.all(
-                    color: Colors.grey.shade400,
-                    width: 1 * sizes.scaleFactor,
-                  ),
-                ),
-                constraints: BoxConstraints(maxHeight: 200 * sizes.scaleFactor),
-                child: filteredItems.isNotEmpty
-                    ? ListView.builder(
-                  shrinkWrap: true,
-                  padding: EdgeInsets.zero,
-                  itemCount: filteredItems.length,
-                  itemBuilder: (context, index) {
-                    final item = filteredItems[index];
-                    return ListTile(
-                      title: Text(
-                        item,
-                        style: TextStyle(color: Colors.black, fontSize: sizes.bodyFontSize),
-                      ),
-                      onTap: () {
-                        onAddItem(item);
-                        searchController.clear();
-                        hideOverlay();
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: theme.cardColor,
+                      border: Border.all(color: theme.dividerColor),
+                      borderRadius: BorderRadius.circular(8 * sizes.scaleFactor),
+                    ),
+                    constraints: BoxConstraints(
+                      maxHeight: overlayHeight, // Set dynamic height
+                    ),
+                    child: filteredItems.isNotEmpty
+                        ? ListView.builder(
+                      padding: EdgeInsets.zero,
+                      itemCount: filteredItems.length,
+                      itemBuilder: (context, index) {
+                        final item = filteredItems[index];
+                        return ListTile(
+                          title: Text(
+                            item,
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              fontSize: fontSizes.bodyFontSize,
+                            ),
+                          ),
+                          onTap: () {
+                            onAddItem(item);
+                            searchController.clear();
+                            hideOverlay();
+                          },
+                        );
                       },
-                    );
-                  },
-                )
-                    : SizedBox(
-                  height: 50 * sizes.scaleFactor,
-                  child: Center(
-                    child: Text(
-                      emptyMessage,
-                      style: TextStyle(
-                        color: Colors.grey.shade600,
-                        fontSize: sizes.bodyFontSize,
+                    )
+                        : Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(sizes.paddingSmall),
+                        child: Text(
+                          emptyMessage,
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: theme.disabledColor,
+                            fontSize: fontSizes.bodyFontSize,
+                          ),
+                        ),
                       ),
                     ),
                   ),
                 ),
               ),
-            ),
+            ],
           ),
         );
 
@@ -1097,118 +1046,163 @@ void initState() {
     }
 
     void filterItems(String query) {
-      if (query.trim().isEmpty) {
-        hideOverlay();
-        return;
-      }
       filteredItems = mockItems
           .where((item) =>
       item.toLowerCase().contains(query.toLowerCase()) &&
           !selectedItems.contains(item))
           .toList();
 
+      // Console log filtered items
+      print('Filtered Items: $filteredItems');
+
       if (searchFocusNode.hasFocus) {
         showOverlay(searchFocusNode.context!);
       }
     }
 
+
     searchFocusNode.addListener(() {
       if (!searchFocusNode.hasFocus) hideOverlay();
     });
 
-    final double horizontalPadding = 16 * sizes.scaleFactor;
-    final double verticalPadding = 8 * sizes.scaleFactor;
-
     final Widget leadingIcon = iconSvg != null
-        ? SvgPicture.asset(iconSvg, width: sizes.iconSizeLarge, height: sizes.iconSizeLarge, color: Colors.grey)
-        : Icon(icon, size: sizes.iconSizeLarge, color: Colors.grey);
+        ? SvgPicture.asset(
+      iconSvg,
+      width: sizes.iconSizeLarge,
+      height: sizes.iconSizeLarge,
+      color: theme.hintColor,
+    )
+        : Icon(
+      icon,
+      size: sizes.iconSizeLarge,
+      color: theme.hintColor,
+    );
 
-    return CompositedTransformTarget(
-      link: layerLink,
-      child: Container(
-        padding: EdgeInsets.symmetric(horizontal: horizontalPadding, vertical: verticalPadding),
-        decoration: BoxDecoration(
-          border: Border(bottom: BorderSide(color: kBorderColor, width: 1 * sizes.scaleFactor)),
+    return Container(
+      padding: EdgeInsets.symmetric(
+        horizontal: sizes.paddingMedium,
+        vertical: sizes.paddingSmall,
+      ),
+      decoration: BoxDecoration(
+        color: theme.cardColor,
+        border: Border(
+          bottom: BorderSide(color: theme.dividerColor),
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                SizedBox(width: 32 * sizes.scaleFactor, height: sizes.iconSizeLarge, child: leadingIcon),
-                SizedBox(width: 8 * sizes.scaleFactor),
-                Expanded(
-                  child: Wrap(
-                    spacing: 8 * sizes.scaleFactor,
-                    runSpacing: 8 * sizes.scaleFactor,
-                    children: selectedItems.map((item) {
-                      return Chip(
-                        backgroundColor: Colors.white,
-                        label: Text(formatContact(item), style: TextStyle(color: Colors.black, fontSize: sizes.bodyFontSize)),
-                        deleteIcon: Icon(Icons.close, color: Colors.red, size: sizes.iconSizeSmall),
-                        onDeleted: () {
-                          onRemoveItem(item);
-                          filterItems(searchController.text);
-                        },
-                      );
-                    }).toList(),
-
-                  ),
-                ),
-              ],
-            ),
-            SizedBox(height: 8 * sizes.scaleFactor),
-            Row(
-              children: [
-                Expanded(
-                  child: SizedBox(
-                    height: 48 * sizes.scaleFactor,
-                    child: TextField(
-                      controller: searchController,
-                      focusNode: searchFocusNode,
-                      onChanged: filterItems,
-                      onTap: () => filterItems(searchController.text),
-                      decoration: InputDecoration(
-                        hintText: title,
-                        prefixIcon: Icon(Icons.search, color: Colors.grey, size: sizes.iconSizeMedium),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8 * sizes.scaleFactor),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              leadingIcon,
+              SizedBox(width: sizes.paddingSmall),
+              Expanded(
+                child: Wrap(
+                  spacing: 8 * sizes.scaleFactor,
+                  runSpacing: 8 * sizes.scaleFactor,
+                  children: selectedItems.map((item) {
+                    return Chip(
+                      backgroundColor: theme.cardColor,
+                      label: Text(
+                        formatContact(item),
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          fontSize: fontSizes.bodyFontSize,
                         ),
-                        contentPadding: EdgeInsets.symmetric(
-                          vertical: 10 * sizes.scaleFactor,
-                          horizontal: 12 * sizes.scaleFactor,
-                        ),
-                        hintStyle: TextStyle(fontSize: sizes.bodyFontSize, color: kHintTextColor),
                       ),
-                      style: TextStyle(fontSize: sizes.bodyFontSize),
+                      deleteIcon: Icon(
+                        Icons.close,
+                        size: sizes.iconSizeSmall,
+                        color: theme.colorScheme.error,
+                      ),
+                      onDeleted: () {
+                        onRemoveItem(item);
+                        filterItems(searchController.text);
+                      },
+                    );
+                  }).toList(),
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: sizes.paddingSmall),
+          Row(
+            children: [
+              Expanded(
+                child: SizedBox(
+                  height: 48 * sizes.scaleFactor,
+                  child: TextField(
+                    controller: searchController,
+                    focusNode: searchFocusNode,
+                    onChanged: filterItems,
+                    decoration: InputDecoration(
+                      hintText: title,
+                      prefixIcon: Icon(
+                        Icons.search,
+                        size: sizes.iconSizeMedium,
+                        color: theme.hintColor,
+                      ),
+                      hintStyle: theme.textTheme.bodyLarge?.copyWith(
+                        color: theme.hintColor,
+                        fontSize: fontSizes.bodyFontSize,
+                      ),
+                      contentPadding: EdgeInsets.symmetric(
+                        vertical: sizes.paddingSmall,
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(sizes.borderRadius),
+                      ),
+                    ),
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      fontSize: fontSizes.bodyFontSize,
                     ),
                   ),
                 ),
-                SizedBox(width: 8 * sizes.scaleFactor),
-                Container(
-                  width: sizes.iconSizeLarge *1.6,
-                  height: sizes.iconSizeLarge*1.4 ,
+              ),
+              SizedBox(width: sizes.paddingSmall),
+              GestureDetector(
+                onTap: () {
+                  final newItem = searchController.text.trim();
+                  if (newItem.isNotEmpty && !selectedItems.contains(newItem)) {
+                    onAddItem(newItem);
+                    searchController.clear();
+                    hideOverlay();
+                  }
+                },
+                child: Container(
+                  width: sizes.iconSizeLarge * 1.6,
+                  height: sizes.iconSizeLarge * 1.4,
                   padding: EdgeInsets.all(8 * sizes.scaleFactor),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: theme.cardColor,
                     borderRadius: BorderRadius.circular(6 * sizes.scaleFactor),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.grey.withOpacity(0.5),
+                        color: theme.shadowColor.withOpacity(0.5),
                         spreadRadius: 2 * sizes.scaleFactor,
                         blurRadius: 2 * sizes.scaleFactor,
                         offset: Offset(0, 1 * sizes.scaleFactor),
                       ),
                     ],
                   ),
-                  child: Icon(Icons.add, color: Colors.black, size: sizes.iconSizeMedium),
+                  child: Icon(
+                    Icons.add,
+                    color: theme.colorScheme.onSurface,
+                    size: sizes.iconSizeMedium,
+                  ),
                 ),
-              ],
-            ),
-          ],
-        ),
+              ),
+            ],
+          ),
+        ],
       ),
+    );
+  }
+
+  Widget _buildDivider(ResponsiveSize sizes, ThemeData theme) {
+    return Container(
+      height: 2,
+      color: theme.dividerColor,
+
     );
   }
 

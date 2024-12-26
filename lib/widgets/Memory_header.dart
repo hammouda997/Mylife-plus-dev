@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../theme.dart'; // Ensure the theme provider is imported
 
-class MemoryHeader extends StatelessWidget {
+class MemoryHeader extends ConsumerWidget {
   final String date;
   final String country;
   final int reactions;
@@ -13,40 +15,50 @@ class MemoryHeader extends StatelessWidget {
   }) : super(key: key);
 
   @override
-  Widget build(BuildContext context) {
-    double screenWidth = MediaQuery.of(context).size.width;
+  Widget build(BuildContext context, WidgetRef ref) {
+    final themeData = ref.watch(themeProvider);
+    final responsiveSize = ResponsiveSize(context);
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
+        // Date Section
         Row(
           children: [
-            Icon(Icons.calendar_today, size: screenWidth * 0.05), 
-            SizedBox(width: screenWidth * 0.01), 
+            Icon(
+              Icons.calendar_today,
+              size: responsiveSize.iconSizeSmall,
+              color: themeData.colorScheme.onSurface,
+            ),
+            SizedBox(width: responsiveSize.paddingSmall / 2),
             Text(
               date,
               style: TextStyle(
                 fontFamily: 'Kumbh Sans',
-                fontSize: screenWidth * 0.045, 
+                fontSize: responsiveSize.bodyFontSize,
                 fontWeight: FontWeight.w500,
-                color: Colors.black,
-                decoration: TextDecoration.none,
+                color: themeData.colorScheme.onSurface,
               ),
             ),
           ],
         ),
+
+        // Country Section
         Row(
           children: [
-            Icon(Icons.location_on, size: screenWidth * 0.05),
-            SizedBox(width: screenWidth * 0.01),
+            Icon(
+              Icons.location_on,
+              size: responsiveSize.iconSizeSmall,
+              color: themeData.colorScheme.onSurface,
+            ),
+            SizedBox(width: responsiveSize.paddingSmall / 2),
             Text(
               country,
               style: TextStyle(
                 fontFamily: 'Kumbh Sans',
-                fontSize: screenWidth * 0.045,
+                fontSize: responsiveSize.bodyFontSize,
                 fontWeight: FontWeight.w500,
-                color: Colors.black,
-                decoration: TextDecoration.none,
+                color: themeData.colorScheme.onSurface,
               ),
             ),
           ],
@@ -55,18 +67,21 @@ class MemoryHeader extends StatelessWidget {
         // Reactions Section
         Row(
           children: [
-            Icon(Icons.person, size: screenWidth * 0.05),
-            SizedBox(width: screenWidth * 0.01),
+            Icon(
+              Icons.person,
+              size: responsiveSize.iconSizeSmall,
+              color: themeData.colorScheme.onSurface,
+            ),
+            SizedBox(width: responsiveSize.paddingSmall / 2),
             Text(
               reactions.toString(),
               style: TextStyle(
                 fontFamily: 'Kumbh Sans',
-                fontSize: screenWidth * 0.045,
+                fontSize: responsiveSize.bodyFontSize,
                 fontWeight: FontWeight.w500,
-                color: Colors.black,
+                color: themeData.colorScheme.onSurface,
               ),
             ),
-            
           ],
         ),
       ],
