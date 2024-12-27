@@ -6,6 +6,28 @@ import '../models/memory.dart';
 import 'dart:math';
 import 'package:intl/intl.dart';
 
+final memoryContentProvider = Provider.family<MemoryContentViewModel, Memory>((ref, memory) {
+  return MemoryContentViewModel(memory);
+});
+
+class MemoryContentViewModel {
+  final Memory memory;
+  MemoryContentViewModel(this.memory);
+
+  String get formattedDate => DateFormat('yyyy/MM/dd, HH:mm').format(DateTime.parse(memory.createdAt));
+
+  String get address => memory.address.isNotEmpty ? memory.address : "Unknown location";
+
+  String get text => memory.text;
+
+  List<String> get hardcodedImages => [
+        "https://cdn.builder.io/api/v1/image/assets/TEMP/7632e90dad2f4f0ca39a4830dbb1b01d72906e4c0ddc67d230681b967b7cc622",
+        "https://cdn.builder.io/api/v1/image/assets/TEMP/7632e90dad2f4f0ca39a4830dbb1b01d72906e4c0ddc67d230681b967b7cc622",
+      ];
+
+  bool get shouldShowImage => Random().nextBool();
+}
+
 class MemoryContent extends ConsumerWidget {
   final Memory memory;
 
@@ -15,6 +37,7 @@ class MemoryContent extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final themeData = ref.watch(themeProvider);
     final responsiveSize = ResponsiveSize(context);
+    final memoryViewModel = ref.watch(memoryContentProvider(memory));
 
     return Container(
       color: themeData.cardColor,
@@ -22,11 +45,13 @@ class MemoryContent extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: EdgeInsets.all(responsiveSize.scaleFactor * 16),
-            child: _buildHeader(ref, responsiveSize),
+            padding: EdgeInsets.all(responsiveSize.scaleFactor * 6),
+            child: _buildHeader(themeData, responsiveSize, memoryViewModel),
           ),
-          if (Random().nextBool()) _buildImageCarousel(responsiveSize),
-          if (memory.text.isNotEmpty) _buildText(responsiveSize),
+          if (memoryViewModel.shouldShowImage)
+            _buildImageCarousel(responsiveSize, memoryViewModel.hardcodedImages),
+          if (memoryViewModel.text.isNotEmpty)
+            _buildText(themeData, responsiveSize, memoryViewModel.text),
           SizedBox(height: responsiveSize.scaleFactor * 16),
           _buildReactions(responsiveSize),
         ],
@@ -34,21 +59,20 @@ class MemoryContent extends ConsumerWidget {
     );
   }
 
-  Widget _buildHeader(WidgetRef ref, ResponsiveSize responsiveSize) {
-    final themeData = ref.watch(themeProvider);
+  Widget _buildHeader(ThemeData themeData, ResponsiveSize responsiveSize, MemoryContentViewModel viewModel) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         _buildIconText(
           icon: Icons.calendar_today,
-          text: DateFormat('yyyy/MM/dd, HH:mm').format(DateTime.parse(memory.createdAt)),
+          text: viewModel.formattedDate,
           themeData: themeData,
           responsiveSize: responsiveSize,
         ),
         Expanded(
           child: _buildIconText(
             icon: Icons.location_on,
-            text: memory.address.isNotEmpty ? memory.address : "Unknown location",
+            text: viewModel.address,
             themeData: themeData,
             responsiveSize: responsiveSize,
             isFlexible: true,
@@ -95,12 +119,8 @@ class MemoryContent extends ConsumerWidget {
     );
   }
 
-  Widget _buildImageCarousel(ResponsiveSize responsiveSize) {
+  Widget _buildImageCarousel(ResponsiveSize responsiveSize, List<String> images) {
     final pageController = PageController();
-    final hardcodedImages = [
-      "https://cdn.builder.io/api/v1/image/assets/TEMP/7632e90dad2f4f0ca39a4830dbb1b01d72906e4c0ddc67d230681b967b7cc622",
-      "https://cdn.builder.io/api/v1/image/assets/TEMP/7632e90dad2f4f0ca39a4830dbb1b01d72906e4c0ddc67d230681b967b7cc622",
-    ];
 
     return Column(
       children: [
@@ -109,16 +129,16 @@ class MemoryContent extends ConsumerWidget {
           height: responsiveSize.scaleFactor * 250,
           child: PageView.builder(
             controller: pageController,
-            itemCount: hardcodedImages.length,
+            itemCount: images.length,
             itemBuilder: (context, index) => GestureDetector(
               onTap: () => Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => FullScreenImageView(imageUrl: hardcodedImages[index]),
+                  builder: (context) => FullScreenImageView(imageUrl: images[index]),
                 ),
               ),
               child: Image.network(
-                hardcodedImages[index],
+                images[index],
                 fit: BoxFit.cover,
                 errorBuilder: (context, error, stackTrace) =>
                     Center(child: Icon(Icons.error, size: responsiveSize.scaleFactor * 24)),
@@ -130,7 +150,7 @@ class MemoryContent extends ConsumerWidget {
           padding: EdgeInsets.only(top: responsiveSize.scaleFactor * 8),
           child: SmoothPageIndicator(
             controller: pageController,
-            count: hardcodedImages.length,
+            count: images.length,
             effect: WormEffect(
               dotHeight: responsiveSize.scaleFactor * 8,
               dotWidth: responsiveSize.scaleFactor * 8,
@@ -144,15 +164,15 @@ class MemoryContent extends ConsumerWidget {
     );
   }
 
-  Widget _buildText(ResponsiveSize responsiveSize) {
+  Widget _buildText(ThemeData themeData, ResponsiveSize responsiveSize, String text) {
     return Padding(
-      padding: EdgeInsets.symmetric(vertical: responsiveSize.scaleFactor * 8),
+      padding: EdgeInsets.symmetric(vertical: responsiveSize.scaleFactor * 8, horizontal: responsiveSize.scaleFactor * 8),
       child: Text(
-        memory.text,
+        text,
         style: TextStyle(
           fontSize: responsiveSize.scaleFactor * 14,
           fontFamily: 'Kumbh Sans',
-          color: Colors.black,
+          color: themeData.colorScheme.onSurface,
         ),
         maxLines: 4,
         overflow: TextOverflow.ellipsis,
