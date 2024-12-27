@@ -1,12 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
-
-
-
-
-  // Dynamic header and item background colors
-  late Color _headerColor;
+ late Color _headerColor;
   late Color _itemBackgroundColor;
 
   Color get headerColor => _headerColor;
@@ -15,14 +9,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 class ThemeNotifier extends StateNotifier<ThemeData> {
   FontSizes _fontSizes;
   FontSizes get fontSizes => _fontSizes;
-
-
-  // Primary color
   Color _primaryColor;
-  Color _originalPrimaryColor; // Store the original primary color
+  Color _originalPrimaryColor;
   Color get primaryColor => _primaryColor;
 
-  // Dynamic header and item background colors
   late Color _headerColor;
   late Color _itemBackgroundColor;
 
@@ -33,9 +23,9 @@ class ThemeNotifier extends StateNotifier<ThemeData> {
       : _fontSizes = FontSizes(),
 
         _primaryColor = Colors.blue,
-        _originalPrimaryColor = Colors.blue, // Initialize the original color
+        _originalPrimaryColor = Colors.blue,
         super(_buildLightTheme()) {
-    _updateDynamicColors(); // Initialize dynamic colors
+    _updateDynamicColors();
   }
 
   static ThemeData _buildLightTheme() {
