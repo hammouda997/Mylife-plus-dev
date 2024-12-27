@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:smooth_page_indicator/smooth_page_indicator.dart';
-import '../theme.dart'; // Ensure the theme provider is imported
+import '../theme.dart';
 import '../models/memory.dart';
 import 'dart:math';
 import 'package:intl/intl.dart';
@@ -9,19 +9,12 @@ import 'package:intl/intl.dart';
 class MemoryContent extends ConsumerWidget {
   final Memory memory;
 
-  const MemoryContent({
-    Key? key,
-    required this.memory,
-  }) : super(key: key);
+  const MemoryContent({Key? key, required this.memory}) : super(key: key);
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final themeData = ref.watch(themeProvider);
     final responsiveSize = ResponsiveSize(context);
-    final pageController = PageController();
-
-    final random = Random();
-    final shouldShowImage = random.nextBool();
 
     return Container(
       color: themeData.cardColor,
@@ -29,83 +22,159 @@ class MemoryContent extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: EdgeInsets.all(responsiveSize.paddingMedium),
-            child: MemoryHeader(
-              date: DateFormat('yyyy/MM/dd, HH:mm').format(DateTime.parse(memory.createdAt)),
-              country: memory.address,
-              reactions: 0, // Replace with actual reaction data if available
-            ),
+            padding: EdgeInsets.all(responsiveSize.scaleFactor * 16),
+            child: _buildHeader(ref, responsiveSize),
           ),
-          SizedBox(height: responsiveSize.paddingSmall),
-
-          if (shouldShowImage)
-            Column(
-              children: [
-                SizedBox(
-                  width: double.infinity,
-                  height: responsiveSize.scale(250),
-                  child: PageView.builder(
-                    controller: pageController,
-                    itemCount: 2, // Hardcoded images
-                    itemBuilder: (context, index) {
-                      final hardcodedImages = [
-                        "https://cdn.builder.io/api/v1/image/assets/TEMP/7632e90dad2f4f0ca39a4830dbb1b01d72906e4c0ddc67d230681b967b7cc622?placeholderIfAbsent=true&apiKey=c43da3a161eb4f318c4f96480fdf0876",
-                        "https://cdn.builder.io/api/v1/image/assets/TEMP/7632e90dad2f4f0ca39a4830dbb1b01d72906e4c0ddc67d230681b967b7cc622?placeholderIfAbsent=true&apiKey=c43da3a161eb4f318c4f96480fdf0876",
-                      ];
-                      return GestureDetector(
-                        onTap: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => FullScreenImageView(imageUrl: hardcodedImages[index]),
-                          ),
-                        ),
-                        child: Image.network(
-                          hardcodedImages[index],
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) =>
-                              Center(child: Icon(Icons.error, size: responsiveSize.iconSizeMedium)),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-                Padding(
-                  padding: EdgeInsets.only(top: responsiveSize.paddingSmall),
-                  child: SmoothPageIndicator(
-                    controller: pageController,
-                    count: 2,
-                    effect: WormEffect(
-                      dotHeight: responsiveSize.scale(8),
-                      dotWidth: responsiveSize.scale(8),
-                      spacing: responsiveSize.paddingSmall / 2,
-                      dotColor: themeData.disabledColor,
-                      activeDotColor: themeData.colorScheme.primary,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-
-          if (memory.text.isNotEmpty)
-            Padding(
-              padding: EdgeInsets.all(responsiveSize.paddingMedium),
-              child: Text(
-                memory.text,
-                style: themeData.textTheme.bodyMedium?.copyWith(
-                  fontSize: responsiveSize.bodyFontSize,
-                  fontFamily: 'Kumbh Sans',
-                  color: themeData.colorScheme.onSurface,
-                ),
-                maxLines: 4,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-
-          SizedBox(height: responsiveSize.paddingMedium),
-
-          const MemoryReactions(),
+          if (Random().nextBool()) _buildImageCarousel(responsiveSize),
+          if (memory.text.isNotEmpty) _buildText(responsiveSize),
+          SizedBox(height: responsiveSize.scaleFactor * 16),
+          _buildReactions(responsiveSize),
         ],
       ),
+    );
+  }
+
+  Widget _buildHeader(WidgetRef ref, ResponsiveSize responsiveSize) {
+    final themeData = ref.watch(themeProvider);
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        _buildIconText(
+          icon: Icons.calendar_today,
+          text: DateFormat('yyyy/MM/dd, HH:mm').format(DateTime.parse(memory.createdAt)),
+          themeData: themeData,
+          responsiveSize: responsiveSize,
+        ),
+        Expanded(
+          child: _buildIconText(
+            icon: Icons.location_on,
+            text: memory.address.isNotEmpty ? memory.address : "Unknown location",
+            themeData: themeData,
+            responsiveSize: responsiveSize,
+            isFlexible: true,
+          ),
+        ),
+        _buildIconText(
+          icon: Icons.person,
+          text: "0",
+          themeData: themeData,
+          responsiveSize: responsiveSize,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildIconText({
+    required IconData icon,
+    required String text,
+    required ThemeData themeData,
+    required ResponsiveSize responsiveSize,
+    bool isFlexible = false,
+  }) {
+    final textWidget = Text(
+      text,
+      style: TextStyle(
+        fontFamily: 'Kumbh Sans',
+        fontSize: responsiveSize.scaleFactor * 14,
+        fontWeight: FontWeight.w500,
+        color: themeData.colorScheme.onSurface,
+      ),
+      overflow: isFlexible ? TextOverflow.ellipsis : null,
+    );
+
+    return Row(
+      children: [
+        Icon(
+          icon,
+          size: responsiveSize.scaleFactor * 20,
+          color: themeData.colorScheme.onSurface,
+        ),
+        SizedBox(width: responsiveSize.scaleFactor * 8),
+        isFlexible ? Flexible(child: textWidget) : textWidget,
+      ],
+    );
+  }
+
+  Widget _buildImageCarousel(ResponsiveSize responsiveSize) {
+    final pageController = PageController();
+    final hardcodedImages = [
+      "https://cdn.builder.io/api/v1/image/assets/TEMP/7632e90dad2f4f0ca39a4830dbb1b01d72906e4c0ddc67d230681b967b7cc622",
+      "https://cdn.builder.io/api/v1/image/assets/TEMP/7632e90dad2f4f0ca39a4830dbb1b01d72906e4c0ddc67d230681b967b7cc622",
+    ];
+
+    return Column(
+      children: [
+        SizedBox(
+          width: double.infinity,
+          height: responsiveSize.scaleFactor * 250,
+          child: PageView.builder(
+            controller: pageController,
+            itemCount: hardcodedImages.length,
+            itemBuilder: (context, index) => GestureDetector(
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => FullScreenImageView(imageUrl: hardcodedImages[index]),
+                ),
+              ),
+              child: Image.network(
+                hardcodedImages[index],
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) =>
+                    Center(child: Icon(Icons.error, size: responsiveSize.scaleFactor * 24)),
+              ),
+            ),
+          ),
+        ),
+        Padding(
+          padding: EdgeInsets.only(top: responsiveSize.scaleFactor * 8),
+          child: SmoothPageIndicator(
+            controller: pageController,
+            count: hardcodedImages.length,
+            effect: WormEffect(
+              dotHeight: responsiveSize.scaleFactor * 8,
+              dotWidth: responsiveSize.scaleFactor * 8,
+              spacing: responsiveSize.scaleFactor * 4,
+              dotColor: Colors.grey,
+              activeDotColor: Colors.blue,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildText(ResponsiveSize responsiveSize) {
+    return Padding(
+      padding: EdgeInsets.symmetric(vertical: responsiveSize.scaleFactor * 8),
+      child: Text(
+        memory.text,
+        style: TextStyle(
+          fontSize: responsiveSize.scaleFactor * 14,
+          fontFamily: 'Kumbh Sans',
+          color: Colors.black,
+        ),
+        maxLines: 4,
+        overflow: TextOverflow.ellipsis,
+      ),
+    );
+  }
+
+  Widget _buildReactions(ResponsiveSize responsiveSize) {
+    final emojis = ["📝", "🥳", "🏃", "👨‍💻"];
+    return Row(
+      children: emojis.map((emoji) => Padding(
+        padding: EdgeInsets.symmetric(horizontal: responsiveSize.scaleFactor * 8),
+        child: Text(
+          emoji,
+          style: TextStyle(
+            fontSize: responsiveSize.scaleFactor * 18,
+            fontFamily: 'Inter',
+            decoration: TextDecoration.none,
+            color: Colors.black,
+          ),
+        ),
+      )).toList(),
     );
   }
 }
@@ -130,147 +199,6 @@ class FullScreenImageView extends StatelessWidget {
                   Center(child: Icon(Icons.error, color: Colors.white)),
             ),
           ),
-        ),
-      ),
-    );
-  }
-}
-
-class MemoryHeader extends ConsumerWidget {
-  final String date;
-  final String country;
-  final int reactions;
-
-  const MemoryHeader({
-    Key? key,
-    required this.date,
-    required this.country,
-    required this.reactions,
-  }) : super(key: key);
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final themeData = ref.watch(themeProvider);
-    final responsiveSize = ResponsiveSize(context);
-
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Row(
-          children: [
-            Icon(
-              Icons.calendar_today,
-              size: responsiveSize.iconSizeSmall,
-              color: themeData.colorScheme.onSurface,
-            ),
-            SizedBox(width: responsiveSize.paddingSmall *1.4 ),
-            Text(
-              date,
-              style: TextStyle(
-                fontFamily: 'Kumbh Sans',
-                fontSize: responsiveSize.bodyFontSize,
-                fontWeight: FontWeight.w500,
-                color: themeData.colorScheme.onSurface,
-              ),
-            ),
-          ],
-        ),
-        SizedBox(width: responsiveSize.paddingSmall *1.4 ),
-
-        Expanded(
-          child: Row(
-            children: [
-              Icon(
-                Icons.location_on,
-                size: responsiveSize.iconSizeSmall,
-                color: themeData.colorScheme.onSurface,
-              ),
-              SizedBox(width: responsiveSize.paddingSmall*1.4 ),
-              Flexible(
-                child: Text(
-                  country.isNotEmpty ? country : "Unknown location",
-                  style: TextStyle(
-                    fontFamily: 'Kumbh Sans',
-                    fontSize: responsiveSize.bodyFontSize,
-                    fontWeight: FontWeight.w500,
-                    color: themeData.colorScheme.onSurface,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
-          ),
-        ),
-        Row(
-          children: [
-            Icon(
-              Icons.person,
-              size: responsiveSize.iconSizeSmall,
-              color: themeData.colorScheme.onSurface,
-            ),
-            SizedBox(width: responsiveSize.paddingSmall *1.4),
-            Text(
-              reactions.toString(),
-              style: TextStyle(
-                fontFamily: 'Kumbh Sans',
-                fontSize: responsiveSize.bodyFontSize,
-                fontWeight: FontWeight.w500,
-                color: themeData.colorScheme.onSurface,
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-}
-
-class MemoryReactions extends ConsumerWidget {
-  const MemoryReactions({Key? key}) : super(key: key);
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final themeData = ref.watch(themeProvider);
-    final responsiveSize = ResponsiveSize(context);
-
-    return Row(
-
-      children: [
-        SizedBox(width: responsiveSize.paddingSmall),
-        _buildReactionButton("📝", themeData, responsiveSize),
-        _buildReactionButton("🥳", themeData, responsiveSize),
-        _buildReactionButton("🏃", themeData, responsiveSize),
-        _buildReactionButton("👨‍💻", themeData, responsiveSize),
-      ],
-    );
-  }
-
-  Widget _buildReactionButton(
-      String emoji, ThemeData themeData, ResponsiveSize responsiveSize) {
-    return Container(
-      margin: EdgeInsets.only(right: responsiveSize.paddingSmall / 2 , left:responsiveSize.paddingSmall*2 ),
-      padding: EdgeInsets.symmetric(
-        horizontal: responsiveSize.paddingSmall,
-        vertical: responsiveSize.paddingSmall,
-      ),
-      decoration: BoxDecoration(
-        color: themeData.cardColor,
-        borderRadius: BorderRadius.circular(responsiveSize.scale(4)),
-        boxShadow: [
-          BoxShadow(
-            color: themeData.shadowColor.withOpacity(0.1),
-            blurRadius: responsiveSize.scale(4),
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Text(
-        emoji,
-        style: TextStyle(
-          fontSize: responsiveSize.bodyFontSize + 5,
-          fontFamily: 'Inter',
-          decoration: TextDecoration.none,
-          color: themeData.colorScheme.onSurface,
         ),
       ),
     );
