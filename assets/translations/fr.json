@@ -1,4 +1,5 @@
-{
+{  "confirm": "Confirmer",
+   "search": "Rechercher",
   "preferences": "Préférences",
   "appearance": "Apparence",
   "language": "Langue ({language})",
@@ -6,7 +7,7 @@
   "lightMode": "Mode clair",
   "changePrimaryColor": "Changer la couleur principale",
   "adjustFontSizes": "Ajuster les tailles de police",
-  "pickColor": "Choisir {colorType}",
+  "pickColor": "Choisis une couleur",
   "cancel": "Annuler",
   "select": "Sélectionner",
   "small": "Petit",
@@ -15,6 +16,7 @@
   "close": "Fermer",
   "done": "Terminé",
   "selectLanguage": "Choisir la langue",
+  "dataErased": "Données effacées",
   "memory": "Mémoire",
   "data": "Données",
   "uploadGpsPoints": "Télécharger des points GPS",

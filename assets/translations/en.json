@@ -1,4 +1,5 @@
-{
+{  "confirm": "Confirm",
+
   "preferences": "Preferences",
   "appearance": "Appearance",
   "language": "Language ({language})",
@@ -6,7 +7,7 @@
   "lightMode": "Light Mode",
   "changePrimaryColor": "Change Primary Color",
   "adjustFontSizes": "Adjust Font Sizes",
-  "pickColor": "Pick {colorType}",
+  "pickColor": "Pick color",
   "cancel": "Cancel",
   "select": "Select",
   "small": "Small",
@@ -26,6 +27,7 @@
   "uploadData": "Upload My Life Data",
   "eraseData": "Erase All Data",
   "eraseDataConfirmation": "Are you sure you want to erase all data? This action cannot be undone.",
+  "dataErased": "All data has been erased.",
   "settings": "Settings",
   "ui": "UI",
   "security": "Security",
@@ -39,5 +41,7 @@
   "add_contacts": "Add Contacts",
   "no_tags_found": "No tags found.",
   "no_contacts_found": "No contacts found.",
-  "new_memory": "New Memory"
+  "new_memory": "New Memory",
+  "search": "Search"
+
 }

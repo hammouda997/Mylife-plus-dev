@@ -1,4 +1,6 @@
-{
+{  "confirm": "Bestätigen",
+    "search": "Suchen",
+
   "preferences": "Einstellungen",
   "appearance": "Aussehen",
   "language": "Sprache ({language})",
@@ -6,7 +8,7 @@
   "lightMode": "Hellmodus",
   "changePrimaryColor": "Primärfarbe ändern",
   "adjustFontSizes": "Schriftgrößen anpassen",
-  "pickColor": "Wählen Sie {colorType}",
+  "pickColor": "Wähle eine Farbe",
   "cancel": "Abbrechen",
   "select": "Auswählen",
   "small": "Klein",
@@ -17,6 +19,7 @@
   "selectLanguage": "Sprache auswählen",
   "memory": "Erinnerung",
   "data": "Daten",
+  "dataErased": "Daten gelöscht",
   "uploadGpsPoints": "GPS-Punkte hochladen",
   "uploadMediaWithGps": "Medien mit GPS hochladen",
   "uploadGpsPointsDescription": "Funktion zum Hochladen von GPS-Punkten befindet sich hier.",

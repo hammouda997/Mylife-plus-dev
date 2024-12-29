@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:mapbox_maps_example/theme.dart';
-import '../widgets/newMemoryForm.dart';
+import 'package:mapbox_maps_example/widgets/memory/newMemoryForm.dart';
 
 class MemoryAddScreen extends ConsumerWidget {
   const MemoryAddScreen({Key? key}) : super(key: key);
@@ -10,21 +10,18 @@ class MemoryAddScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final themeData = ref.watch(themeProvider);
-    final responsiveSize = ResponsiveSize(context);
-    final headerColor = ref.watch(themeProvider.notifier).headerColor;
-    final rs = ref.watch(responsiveSizeProvider(context));
 
     return Scaffold(
-      backgroundColor: headerColor,
+      backgroundColor: themeData.extension<CustomColors>()?.headerColor,
       appBar: AppBar(
         backgroundColor: themeData.primaryColor,
         centerTitle: true,
         elevation: 0,
-        toolbarHeight: responsiveSize.scale(50.0),
+        toolbarHeight: 50,
         leading: IconButton(
           icon: Icon(
             Icons.close,
-            size: responsiveSize.iconSizeLarge,
+            size: 32,
             color: Colors.red,
           ),
           onPressed: () => Navigator.of(context).pop(),
@@ -34,17 +31,17 @@ class MemoryAddScreen extends ConsumerWidget {
           children: [
             Image.asset(
               'assets/book.png',
-              width: rs.iconSizeLarge,
-              height: rs.iconSizeLarge,
+              width: 28,
+              height: 28,
               fit: BoxFit.fill,
             ),
-            SizedBox(width: responsiveSize.paddingSmall),
+            SizedBox(width: 8),
             Text(
               'new_memory'.tr(),
               style: TextStyle(
-                fontSize: responsiveSize.titleFontSize,
+                fontSize: 24,
                 fontWeight: FontWeight.bold,
-                color: themeData.colorScheme.onPrimary,
+                color: themeData.cardColor,
               ),
             ),
           ],
@@ -53,11 +50,10 @@ class MemoryAddScreen extends ConsumerWidget {
           IconButton(
             icon: Icon(
               Icons.check,
-              size: responsiveSize.iconSizeLarge,
-              color: Colors.green,
+              size: 32,
+              color: themeData.colorScheme.onPrimary,
             ),
             onPressed: () {
-
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(content: Text('Memory saved!'.tr())),
               );
@@ -82,7 +78,7 @@ class MemoryAddScreen extends ConsumerWidget {
                   ),
                 ],
               ),
-              child: const MemoryForm(),
+               child: const MemoryForm(),
             ),
           ),
         ],

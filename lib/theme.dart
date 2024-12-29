@@ -1,31 +1,26 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
- late Color _headerColor;
-  late Color _itemBackgroundColor;
-
-  Color get headerColor => _headerColor;
-  Color get itemBackgroundColor => _itemBackgroundColor;
+import 'package:shared_preferences/shared_preferences.dart';
 
 class ThemeNotifier extends StateNotifier<ThemeData> {
   FontSizes _fontSizes;
-  FontSizes get fontSizes => _fontSizes;
   Color _primaryColor;
   Color _originalPrimaryColor;
+  Color _lerpColor;
+  bool _isDarkMode;
+
+  FontSizes get fontSizes => _fontSizes;
   Color get primaryColor => _primaryColor;
-
-  late Color _headerColor;
-  late Color _itemBackgroundColor;
-
-  Color get headerColor => _headerColor;
-  Color get itemBackgroundColor => _itemBackgroundColor;
-
+  Color get lerpColor => _lerpColor;
+  bool get isDarkMode => _isDarkMode;
   ThemeNotifier()
       : _fontSizes = FontSizes(),
-
         _primaryColor = Colors.blue,
         _originalPrimaryColor = Colors.blue,
+        _isDarkMode = false ,
+        _lerpColor = Colors.blue, 
         super(_buildLightTheme()) {
-    _updateDynamicColors();
+    _initialize();
   }
 
   static ThemeData _buildLightTheme() {
@@ -47,14 +42,80 @@ class ThemeNotifier extends StateNotifier<ThemeData> {
       ),
       iconTheme: const IconThemeData(color: Colors.grey),
       cardColor: Colors.white,
-      dividerColor: Color(0xFFEEEEEE),
+      dividerColor: const Color(0xFFEEEEEE),
       buttonTheme: const ButtonThemeData(
         buttonColor: Colors.blue,
         textTheme: ButtonTextTheme.primary,
       ),
+      extensions: [
+        CustomColors(
+          headerColor: Colors.blue.withOpacity(0.8),
+          itemBackgroundColor: Colors.grey[200]!,
+        ),
+      ],
     );
   }
 
+  Future<void> _initialize() async {
+    final prefs = await SharedPreferences.getInstance();
+    final savedPrimaryColorValue = prefs.getInt('primaryColor') ?? Colors.blue.value;
+    _primaryColor = Color(savedPrimaryColorValue);
+    _originalPrimaryColor = _primaryColor;
+    _isDarkMode = prefs.getBool('isDarkMode') ?? false;
+    state = _isDarkMode ? _buildDarkTheme() : _buildLightTheme();
+    final savedLerpColorValue = prefs.getInt('lerpColor') ?? Colors.blue.value;
+    _lerpColor = Color(savedLerpColorValue);
+
+    final titleFontSize = prefs.getDouble('titleFontSize') ?? 20.0;
+    final subtitleFontSize = prefs.getDouble('subtitleFontSize') ?? 16.0;
+    final bodyFontSize = prefs.getDouble('bodyFontSize') ?? 14.0;
+    _fontSizes = FontSizes(
+      titleFontSize: titleFontSize,
+      subtitleFontSize: subtitleFontSize,
+      bodyFontSize: bodyFontSize,
+    );
+
+    _updateThemeExtensions();
+    state = state.copyWith(
+      primaryColor: _primaryColor,
+      textTheme: state.textTheme.copyWith(
+        bodyLarge: state.textTheme.bodyLarge?.copyWith(fontSize: _fontSizes.bodyFontSize),
+        bodyMedium: state.textTheme.bodyMedium?.copyWith(fontSize: _fontSizes.subtitleFontSize),
+        titleLarge: state.textTheme.titleLarge?.copyWith(fontSize: _fontSizes.titleFontSize),
+      ),
+    );
+  }
+
+  Future<void> updatePrimaryColor(Color color) async {
+    _primaryColor = color;
+    _originalPrimaryColor = color;
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('primaryColor', color.value);
+
+    _updateThemeExtensions();
+    state = state.copyWith(
+      primaryColor: _primaryColor,
+      appBarTheme: state.appBarTheme.copyWith(backgroundColor: _primaryColor),
+    );
+  }
+
+  Future<void> updateFontSizes(FontSizes fontSizes) async {
+    _fontSizes = fontSizes;
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble('titleFontSize', fontSizes.titleFontSize);
+    await prefs.setDouble('subtitleFontSize', fontSizes.subtitleFontSize);
+    await prefs.setDouble('bodyFontSize', fontSizes.bodyFontSize);
+
+    state = state.copyWith(
+      textTheme: state.textTheme.copyWith(
+        bodyLarge: state.textTheme.bodyLarge?.copyWith(fontSize: fontSizes.bodyFontSize),
+        bodyMedium: state.textTheme.bodyMedium?.copyWith(fontSize: fontSizes.subtitleFontSize),
+        titleLarge: state.textTheme.titleLarge?.copyWith(fontSize: fontSizes.titleFontSize),
+      ),
+    );
+  }
   static ThemeData _buildDarkTheme() {
     return ThemeData.dark().copyWith(
       primaryColor: Colors.grey,
@@ -79,78 +140,48 @@ class ThemeNotifier extends StateNotifier<ThemeData> {
         buttonColor: Colors.grey,
         textTheme: ButtonTextTheme.primary,
       ),
+      extensions: [
+        CustomColors(
+          headerColor: Colors.grey.withOpacity(0.8),
+          itemBackgroundColor: Colors.grey[700]!,
+        ),
+      ],
     );
   }
 
-  void _updateDynamicColors() {
-    _headerColor = Color.lerp(_primaryColor, state.brightness == Brightness.light ? Colors.white : Colors.black, 0.8)!;
-    _itemBackgroundColor = Color.lerp(_primaryColor, Colors.grey[200], 0.5)!;
 
-  }
-  void toggleTheme() {
-    if (state.brightness == Brightness.light) {
-      _primaryColor = Color.lerp(_originalPrimaryColor, Colors.black, 0.5)!;
-      state = _buildDarkTheme().copyWith(
-        primaryColor: _primaryColor,
-        iconTheme: IconThemeData(color: Colors.grey),
-        textTheme: state.textTheme.copyWith(
-          bodyLarge: state.textTheme.bodyLarge
-              ?.copyWith(color: Colors.white, fontSize: _fontSizes.bodyFontSize),
-          bodyMedium: state.textTheme.bodyMedium
-              ?.copyWith(color: Colors.grey, fontSize: _fontSizes.subtitleFontSize),
-          titleLarge: state.textTheme.titleLarge
-              ?.copyWith(color: Colors.white, fontSize: _fontSizes.titleFontSize),
-        ),
-      );
-    } else {
-      _primaryColor = _originalPrimaryColor;
-      state = _buildLightTheme().copyWith(
-        primaryColor: _primaryColor,
-        iconTheme: IconThemeData(color: Colors.white),
-        textTheme: state.textTheme.copyWith(
-          bodyLarge: state.textTheme.bodyLarge
-              ?.copyWith(color: Colors.black, fontSize: _fontSizes.bodyFontSize),
-          bodyMedium: state.textTheme.bodyMedium
-              ?.copyWith(color: Colors.black54, fontSize: _fontSizes.subtitleFontSize),
-          titleLarge: state.textTheme.titleLarge
-              ?.copyWith(color: Colors.black, fontSize: _fontSizes.titleFontSize),
-        ),
-      );
-    }
-    _updateDynamicColors();
+  Future<void> toggleTheme() async {
+    _isDarkMode = !_isDarkMode;
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('isDarkMode', _isDarkMode);
+
+    state = _isDarkMode ? _buildDarkTheme() : _buildLightTheme();
+
+    _updateThemeExtensions();
   }
 
-
-  /// Update the primary color
-  void updatePrimaryColor(Color color) {
-    _primaryColor = color;
-    _originalPrimaryColor = color;
+  void _updateThemeExtensions() {
+    final customColors = CustomColors(
+      headerColor: Color.lerp(
+        _primaryColor,
+        state.brightness == Brightness.light ? Colors.white : Colors.black,
+        0.8,
+      )!,
+      itemBackgroundColor: Color.lerp(_primaryColor, Colors.grey[200], 0.5)!,
+    );
 
     state = state.copyWith(
-      primaryColor: _primaryColor,
-      appBarTheme: state.appBarTheme.copyWith(backgroundColor: _primaryColor),
-      buttonTheme: state.buttonTheme.copyWith(buttonColor: _primaryColor),
-      iconTheme: state.iconTheme.copyWith(color: Colors.grey )
+      extensions: [customColors],
     );
-
-    _updateDynamicColors();
   }
 
-  void updateFontSizes(FontSizes fontSizes) {
-    _fontSizes = fontSizes;
-    state = state.copyWith(
-      textTheme: state.textTheme.copyWith(
-        bodyLarge: state.textTheme.bodyLarge?.copyWith(
-          fontSize: fontSizes.bodyFontSize,
-        ),
-        bodyMedium: state.textTheme.bodyMedium?.copyWith(
-          fontSize: fontSizes.subtitleFontSize,
-        ),
-        titleLarge: state.textTheme.titleLarge?.copyWith(
-          fontSize: fontSizes.titleFontSize,
-        ),
-      ),
-    );
+
+
+  Future<void> _saveLerpColor(Color lerpColor) async {
+    _lerpColor = lerpColor;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('lerpColor', lerpColor.value);
   }
 }
 
@@ -158,48 +189,30 @@ final themeProvider = StateNotifierProvider<ThemeNotifier, ThemeData>(
       (ref) => ThemeNotifier(),
 );
 
-class ResponsiveSize {
-  final BuildContext context;
+class CustomColors extends ThemeExtension<CustomColors> {
+  final Color headerColor;
+  final Color itemBackgroundColor;
 
-  ResponsiveSize(this.context);
+  CustomColors({required this.headerColor, required this.itemBackgroundColor});
 
-  double get scaleFactor => MediaQuery.of(context).size.width / baseWidth;
+  @override
+  CustomColors copyWith({Color? headerColor, Color? itemBackgroundColor}) {
+    return CustomColors(
+      headerColor: headerColor ?? this.headerColor,
+      itemBackgroundColor: itemBackgroundColor ?? this.itemBackgroundColor,
+    );
+  }
 
-  // Font Sizes
-  double get titleFontSize => 20.0 * scaleFactor;
-  double get subtitleFontSize => 16.0 * scaleFactor;
-  double get bodyFontSize => 14.0 * scaleFactor;
-
-  // Icon Sizes
-  double get iconSizeLarge => 32.0 * scaleFactor;
-  double get iconSizeMedium => 24.0 * scaleFactor;
-  double get iconSizeSmall => 16.0 * scaleFactor;
-
-  // Common Sizes (use these for paddings, margins, etc.)
-  double get paddingSmall => 4.0 * scaleFactor;
-  double get paddingMedium => 16.0 * scaleFactor;
-  double get paddingLarge => 24.0 * scaleFactor;
-
-  double get borderRadius => 8.0 * scaleFactor;
-
-  // Box Shadow Scaling
-  double get blurRadius => 5.0 * scaleFactor;
-  double get spreadRadius => 2.0 * scaleFactor;
-
-  // Other Sizes
-  double scale(double value) => value * scaleFactor;
-
-  static const double baseWidth = 375.0;
+  @override
+  CustomColors lerp(CustomColors other, double t) {
+    return CustomColors(
+      headerColor: Color.lerp(headerColor, other.headerColor, t)!,
+      itemBackgroundColor: Color.lerp(itemBackgroundColor, other.itemBackgroundColor, t)!,
+    );
+  }
 }
 
-/// Colors for static styling
-const Color kPrimaryIconColor = Color(0xFFCACACA);
-const Color kTitleColor = Colors.black;
-const Color kSubtitleColor = Colors.black87;
-const Color kHintTextColor = Color(0xFFCACACA);
-const Color kBorderColor = Color(0xFFF1F1F1);
 
-/// FontSizes class
 class FontSizes {
   double titleFontSize;
   double subtitleFontSize;
@@ -207,8 +220,8 @@ class FontSizes {
 
   FontSizes({
     this.titleFontSize = 20.0,
-    this.subtitleFontSize = 16.0,
-    this.bodyFontSize = 18.0,
+    this.subtitleFontSize = 20,
+    this.bodyFontSize = 20.0,
   });
 
   FontSizes copyWith({
@@ -224,8 +237,36 @@ class FontSizes {
   }
 }
 
-// ResponsiveSize provider
-final responsiveSizeProvider =
-Provider.family<ResponsiveSize, BuildContext>((ref, context) {
-  return ResponsiveSize(context);
-});
+final fontSizeProvider = StateNotifierProvider<FontSizeNotifier, FontSizes>(
+      (ref) => FontSizeNotifier(),
+);
+
+class FontSizeNotifier extends StateNotifier<FontSizes> {
+  static const String _fontSizeKey = 'font_size';
+
+  FontSizeNotifier() : super(FontSizes()) {
+    _loadFontSizes();
+  }
+
+  Future<void> _loadFontSizes() async {
+    final prefs = await SharedPreferences.getInstance();
+    final titleFontSize = prefs.getDouble('titleFontSize') ?? 20.0;
+    final subtitleFontSize = prefs.getDouble('subtitleFontSize') ?? 16.0;
+    final bodyFontSize = prefs.getDouble('bodyFontSize') ?? 14.0;
+
+    state = FontSizes(
+      titleFontSize: titleFontSize,
+      subtitleFontSize: subtitleFontSize,
+      bodyFontSize: bodyFontSize,
+    );
+  }
+
+  Future<void> updateFontSize(FontSizes fontSizes) async {
+    state = fontSizes;
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble('titleFontSize', fontSizes.titleFontSize);
+    await prefs.setDouble('subtitleFontSize', fontSizes.subtitleFontSize);
+    await prefs.setDouble('bodyFontSize', fontSizes.bodyFontSize);
+  }
+}
