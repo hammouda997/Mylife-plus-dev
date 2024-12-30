@@ -1,89 +1,214 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
-import 'package:mapbox_maps_example/point_annotations_example.dart';
-import '../widgets/BottomIconBar.dart';
-import '../widgets/Memory_item.dart';
-import '../widgets/Memory_header.dart';
-import '../widgets/Memory_content.dart';
-import '../widgets/Memory_reactions.dart';
-import '../widgets/SearchBarWidget.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
+import '../repository/memoryRepo.dart';
+import '../theme.dart';
+import '../models/memory.dart';
+import '../widgets/memory/Memory_content.dart';
+import '../widgets/settings/Ui_settings.dart';
 
-class MemoryFeedScreen extends StatefulWidget {
-  const MemoryFeedScreen({Key? key}) : super(key: key);
+final memoryProvider = FutureProvider<List<Memory>>((ref) {
+  return MemoryRepository.instance.fetchAllMemories();
+});
+
+class MemoryFeedScreen extends ConsumerWidget {
+  final ScrollController controller;
+
+  const MemoryFeedScreen({Key? key, required this.controller}) : super(key: key);
 
   @override
-  MemoryFeedScreenState createState() => MemoryFeedScreenState();
+  Widget build(BuildContext context, WidgetRef ref) {
+    final themeData = ref.watch(themeProvider);
+    final fontSizes = ref.watch(fontSizeProvider);
+
+    return Scaffold(
+      backgroundColor: themeData.scaffoldBackgroundColor,
+      body: SafeArea(
+        child: ref.watch(memoryProvider).when(
+          data: (memories) => MemoryList(memories: memories, controller: controller),
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (error, _) => ErrorView(error: error),
+        ),
+      ),
+    );
+  }
 }
 
-class MemoryFeedScreenState extends State<MemoryFeedScreen> {
+class MemoryList extends ConsumerWidget {
+  final List<Memory> memories;
+  final ScrollController controller;
+
+  const MemoryList({Key? key, required this.memories, required this.controller}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final groupedMemories = _groupMemoriesByDate(memories);
+
+    return ListView.builder(
+      controller: controller,
+      physics: const BouncingScrollPhysics(),
+      itemCount: groupedMemories.keys.length,
+      itemBuilder: (context, index) {
+        final date = groupedMemories.keys.elementAt(index);
+        final memoriesForDate = groupedMemories[date]!;
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (index > 0) Separator(),
+            DateHeader(date: date),
+            Separator(),
+            ...memoriesForDate.map((memory) => MemoryContent(memory: memory)),
+          ],
+        );
+      },
+    );
+  }
+
+  Map<String, List<Memory>> _groupMemoriesByDate(List<Memory> memories) {
+    return memories.fold<Map<String, List<Memory>>>({}, (map, memory) {
+      final date = DateFormat('yyyy-MM-dd').format(DateTime.parse(memory.createdAt));
+      map.putIfAbsent(date, () => []).add(memory);
+      return map;
+    });
+  }
+}
+
+class DateHeader extends ConsumerWidget {
+  final String date;
+
+  const DateHeader({Key? key, required this.date}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final themeData = ref.watch(themeProvider);
+    final fontSizes = ref.watch(fontSizeProvider);
+    final selectedLanguage = ref.watch(selectedLanguageProvider);
+    final fullText = DateFormat('EEEE, dd/MM/yyyy', selectedLanguage)
+        .format(DateTime.parse(date));
+
+    final GlobalKey _textKey = GlobalKey();
+
+    return Center(
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxWidth: MediaQuery.of(context).size.width,
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 8.0),
+          child: Row(
+            children: [
+              SvgPicture.asset(
+                'assets/icons/calendar.svg',
+                width: fontSizes.bodyFontSize * 1.2,
+                height: fontSizes.bodyFontSize * 1.2,
+                color: themeData.colorScheme.onBackground,
+              ),
+              const SizedBox(width: 8.0),
+              Flexible(
+                child: LayoutBuilder(
+                  builder: (BuildContext context, BoxConstraints constraints) {
+                    // Text widget to check for overflow
+                    final text = Text(
+                      fullText,
+                      key: _textKey,
+                      style: TextStyle(
+                        fontSize: fontSizes.bodyFontSize,
+                        fontWeight: FontWeight.w500,
+                        color: themeData.colorScheme.onBackground,
+                      ),
+                      overflow: TextOverflow.ellipsis, 
+                    );
+
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      final renderBox = _textKey.currentContext?.findRenderObject() as RenderBox?;
+                      final isOverflowing =
+                          renderBox != null && renderBox.size.width > constraints.maxWidth;
+
+                      if (isOverflowing) {
+                        GestureDetector(
+                          onTap: () {
+                            showDialog(
+                              context: context,
+                              builder: (BuildContext context) {
+                                return AlertDialog(
+                                  content: Text(
+                                    fullText,
+                                    style: TextStyle(
+                                      fontSize: fontSizes.bodyFontSize,
+                                      fontWeight: FontWeight.w500,
+                                      color: themeData.colorScheme.onBackground,
+                                    ),
+                                  ),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () => Navigator.of(context).pop(),
+                                      child: Text(
+                                        'Close',
+                                        style: TextStyle(color: themeData.primaryColor),
+                                      ),
+                                    ),
+                                  ],
+                                );
+                              },
+                            );
+                          },
+                        );
+                      }
+                    });
+
+                    return text;
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class Separator extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final themeData = ref.watch(themeProvider);
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4.0),
+      child: Divider(
+        thickness: 1.5,
+        color: themeData.dividerColor.withOpacity(0.6),
+        height: 8.0,
+      ),
+    );
+  }
+}
+
+class ErrorView extends StatelessWidget {
+  final Object error;
+
+  const ErrorView({Key? key, required this.error}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius:
-        BorderRadius.vertical(top: Radius.circular(16)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black26,
-            blurRadius: 5,
-            offset: Offset(0, -2),
-          ),
-        ],
-      ),
-      child: ListView(
-        physics: const BouncingScrollPhysics(),
-
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Container(
-            color: Colors.white,
-            margin: EdgeInsets.only(top: 20),
-            child: Column(
-              children: [
-                MemoryContent(
-                  date: "24/12/2024, 15:30",
-                  country: "Country Name",
-                  reactions: 3,
-                  content:
-                  "Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit ametLorem ipsum dolor sit amet Lorem ipsum dolor sit amet",
-                ),
-                const Divider(color: Colors.grey),
-                MemoryContent(
-                  date: "24/12/2024, 15:30",
-                  country: "Country Name",
-                  reactions: 3,
-                  content: "Lorem ipsum dolor sit amet...",
-                  imageUrls: [
-                    "https://cdn.builder.io/api/v1/image/assets/TEMP/7632e90dad2f4f0ca39a4830dbb1b01d72906e4c0ddc67d230681b967b7cc622?placeholderIfAbsent=true&apiKey=c43da3a161eb4f318c4f96480fdf0876",
-                    "https://cdn.builder.io/api/v1/image/assets/TEMP/7632e90dad2f4f0ca39a4830dbb1b01d72906e4c0ddc67d230681b967b7cc622?placeholderIfAbsent=true&apiKey=c43da3a161eb4f318c4f96480fdf0876",
-                  ],
-                ),
-                const Divider(color: Colors.grey),
-                MemoryContent(
-                  date: "24/12/2024, 15:30",
-                  country: "Country Name",
-                  reactions: 3,
-                  content:
-                  "Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit ametLorem ipsum dolor sit amet Lorem ipsum dolor sit amet",
-                  imageUrls: [
-                    "https://cdn.builder.io/api/v1/image/assets/TEMP/7632e90dad2f4f0ca39a4830dbb1b01d72906e4c0ddc67d230681b967b7cc622?placeholderIfAbsent=true&apiKey=c43da3a161eb4f318c4f96480fdf0876",
-                    "https://cdn.builder.io/api/v1/image/assets/TEMP/7632e90dad2f4f0ca39a4830dbb1b01d72906e4c0ddc67d230681b967b7cc622?placeholderIfAbsent=true&apiKey=c43da3a161eb4f318c4f96480fdf0876",
-                  ],
-                ),
-                const Divider(color: Colors.grey),
-                MemoryContent(
-                  date: "24/12/2024, 15:30",
-                  country: "Country Name",
-                  reactions: 3,
-                  content:
-                  "i am the test dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit ametLorem ipsum dolor sit amet Lorem ipsum dolor sit amet",
-                ),
-              ],
-            ),
+          Text(
+            "Error: $error",
+            style: const TextStyle(fontSize: 16, color: Colors.red),
+          ),
+          const SizedBox(height: 16),
+          ElevatedButton(
+            onPressed: () {
+            },
+            child: Text("Retry".tr()),
           ),
         ],
       ),
-
     );
   }
 }
