@@ -33,3 +33,4 @@ class GroupRepository {
     return db.delete('Groups', where: 'id = ?', whereArgs: [id]);
   }
 }
+
